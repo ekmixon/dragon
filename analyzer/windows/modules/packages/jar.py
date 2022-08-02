@@ -16,11 +16,7 @@ class Jar(Package):
             os.path.join(os.getenv("ProgramFiles"), "Java", "jre6", "bin", "java.exe"),
         ]
 
-        for path in paths:
-            if os.path.exists(path):
-                return path
-
-        return None
+        return next((path for path in paths if os.path.exists(path)), None)
 
     def start(self, path):
         java = self.get_path()
@@ -29,10 +25,7 @@ class Jar(Package):
 
         free = self.options.get("free", False)
         class_path = self.options.get("class", None)
-        suspended = True
-        if free:
-            suspended = False
-
+        suspended = not free
         if class_path:
             args = "-cp \"%s\" %s" % (path, class_path)
         else:
@@ -42,12 +35,11 @@ class Jar(Package):
         if not p.execute(path=java, args=args, suspended=suspended):
             raise CuckooPackageError("Unable to execute initial Java process, analysis aborted")
 
-        if not free and suspended:
-            p.inject()
-            p.resume()
-            return p.pid
-        else:
+        if free or not suspended:
             return None
+        p.inject()
+        p.resume()
+        return p.pid
 
     def check(self):
         return True

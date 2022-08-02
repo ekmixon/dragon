@@ -32,13 +32,11 @@ class AnalysisInfo(Processing):
         else:
             duration = (ended - started).seconds
 
-        info = {
-            "version" : CUCKOO_VERSION,
-            "started" : self.task["started_on"],
-            "ended" : self.task.get("completed_on", "none"),
-            "duration" : duration,
-            "id" : int(self.task["id"]),
-            "category" : self.task["category"]
+        return {
+            "version": CUCKOO_VERSION,
+            "started": self.task["started_on"],
+            "ended": self.task.get("completed_on", "none"),
+            "duration": duration,
+            "id": int(self.task["id"]),
+            "category": self.task["category"],
         }
-
-        return info

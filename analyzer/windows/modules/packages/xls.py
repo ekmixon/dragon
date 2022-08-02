@@ -19,11 +19,7 @@ class XLS(Package):
             os.path.join(os.getenv("ProgramFiles"), "Microsoft Office", "Office15", "EXCEL.EXE")
         ]
 
-        for path in paths:
-            if os.path.exists(path):
-                return path
-
-        return None
+        return next((path for path in paths if os.path.exists(path)), None)
 
     def start(self, path):
         excel = self.get_path()
@@ -31,20 +27,16 @@ class XLS(Package):
             raise CuckooPackageError("Unable to find any Microsoft Office Excel executable available")
 
         free = self.options.get("free", False)
-        suspended = True
-        if free:
-            suspended = False
-
+        suspended = not free
         p = Process()
         if not p.execute(path=excel, args="\"%s\"" % path, suspended=suspended):
             raise CuckooPackageError("Unable to execute initial Microsoft Office Excel process, analysis aborted")
 
-        if not free and suspended:
-            p.inject()
-            p.resume()
-            return p.pid
-        else:
+        if free or not suspended:
             return None
+        p.inject()
+        p.resume()
+        return p.pid
 
     def check(self):
         return True

@@ -322,7 +322,7 @@ class LibVirtMachineManager(MachineManager):
         @return: status string.
         """
         log.debug("Getting status for %s", label)
-        
+
         # Stetes mapping of python-libvirt.
         # virDomainState
         # VIR_DOMAIN_NOSTATE = 0
@@ -343,9 +343,9 @@ class LibVirtMachineManager(MachineManager):
             self._disconnect(conn)
 
         if state:
-            if state[0] == 1 or state[0] == 3:
+            if state[0] in [1, 3]:
                 status = self.RUNNING
-            elif state[0] == 4 or state[0] == 5:
+            elif state[0] in [4, 5]:
                 status = self.POWEROFF
             else:
                 status = self.ERROR
@@ -383,10 +383,7 @@ class LibVirtMachineManager(MachineManager):
         """Fetch machines handlers.
         @return: dict with machine label as key and handle as value.
         """
-        vms = {}
-        for vm in self.machines():
-            vms[vm.label] = self._lookup(vm.label)
-        return vms
+        return {vm.label: self._lookup(vm.label) for vm in self.machines()}
 
     def _lookup(self, label):
         """Search for a virtual machine.
@@ -420,10 +417,7 @@ class LibVirtMachineManager(MachineManager):
         """Check if libvirt release supports snapshots.
         @return: True or false.
         """
-        if libvirt.getVersion() >= 8000:
-            return True
-        else:
-            return False
+        return libvirt.getVersion() >= 8000
 
 class Processing(object):
     """Base abstract class for processing module."""
@@ -495,17 +489,14 @@ class Signature(object):
                 for item in subject:
                     if exp.match(item):
                         return item
-            else:
-                if exp.match(subject):
-                    return subject
-        else:
-            if isinstance(subject, list):
-                for item in subject:
-                    if item == pattern:
-                        return item
-            else:
-                if subject == pattern:
-                    return subject
+            elif exp.match(subject):
+                return subject
+        elif isinstance(subject, list):
+            for item in subject:
+                if item == pattern:
+                    return item
+        elif subject == pattern:
+            return subject
 
         return None
 
@@ -553,9 +544,8 @@ class Signature(object):
         # Loop through processes.
         for item in self.results["behavior"]["processes"]:
             # Check if there's a process name filter.
-            if process:
-                if item["process_name"] != process:
-                    continue
+            if process and item["process_name"] != process:
+                continue
 
             # Loop through API calls.
             for call in item["calls"]:
@@ -587,28 +577,24 @@ class Signature(object):
         # Loop through processes.
         for item in self.results["behavior"]["processes"]:
             # Check if there's a process name filter.
-            if process:
-                if item["process_name"] != process:
-                    continue
+            if process and item["process_name"] != process:
+                continue
 
             # Loop through API calls.
             for call in item["calls"]:
                 # Check if there's an API name filter.
-                if api:
-                    if call["api"] != api:
-                        continue
+                if api and call["api"] != api:
+                    continue
 
                 # Check if there's a category filter.
-                if category:
-                    if call["category"] != category:
-                        continue
+                if category and call["category"] != category:
+                    continue
 
                 # Loop through arguments.
                 for argument in call["arguments"]:
                     # Check if there's an argument name filter.
-                    if name:
-                        if argument["name"] != name:
-                            continue
+                    if name and argument["name"] != name:
+                        continue
 
                     # Check if the argument value matches.
                     if self._check_value(pattern=pattern,
@@ -636,13 +622,16 @@ class Signature(object):
                       expression or not and therefore should be compiled.
         @return: boolean with the result of the check.
         """
-        for item in self.results["network"]["domains"]:
-            if self._check_value(pattern=pattern,
-                                 subject=item["domain"],
-                                 regex=regex):
-                return item
-
-        return None
+        return next(
+            (
+                item
+                for item in self.results["network"]["domains"]
+                if self._check_value(
+                    pattern=pattern, subject=item["domain"], regex=regex
+                )
+            ),
+            None,
+        )
 
     def check_url(self, pattern, regex=False):
         """Checks for a URL being contacted.
@@ -651,13 +640,16 @@ class Signature(object):
                       expression or not and therefore should be compiled.
         @return: boolean with the result of the check.
         """
-        for item in self.results["network"]["http"]:
-            if self._check_value(pattern=pattern,
-                                 subject=item["uri"],
-                                 regex=regex):
-                return item
-
-        return None
+        return next(
+            (
+                item
+                for item in self.results["network"]["http"]
+                if self._check_value(
+                    pattern=pattern, subject=item["uri"], regex=regex
+                )
+            ),
+            None,
+        )
 
     def run(self):
         """Start signature processing.

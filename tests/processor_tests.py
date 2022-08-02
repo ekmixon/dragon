@@ -41,10 +41,7 @@ class TestProcessor:
 class ProcessingMock(Processing):
     def run(self):
         self.key = "foo"
-        foo = {
-            "bar" : "taz"
-        }
-        return foo
+        return {"bar": "taz"}
 
 class SignatureMock(Signature):
     name = "mock"
@@ -52,10 +49,7 @@ class SignatureMock(Signature):
     maximum = CUCKOO_VERSION.split("-")[0]
 
     def run(self, results):
-        if "foo" in results:
-            return True
-        else:
-            return False
+        return "foo" in results
 
 class SignatureAlterMock(SignatureMock):
     def run(self, results):

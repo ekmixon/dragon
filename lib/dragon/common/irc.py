@@ -75,12 +75,7 @@ class ircMessage(object):
         except Exception:
             return None
 
-        entry_cc = []
-        for msg in self._messages:
-            if msg['type'] == 'client':
-                entry_cc.append(msg)     
-
-        return entry_cc
+        return [msg for msg in self._messages if msg['type'] == 'client']
 
     def getClientMessagesFilter(self,buf,filters):
         """
@@ -93,13 +88,11 @@ class ircMessage(object):
         except Exception:
             return None
 
-        entry_cc = []
-
-        for msg in self._messages:
-            if msg['type'] == 'client' and msg['command'] not in filters:
-                entry_cc.append(msg)
-
-        return entry_cc
+        return [
+            msg
+            for msg in self._messages
+            if msg['type'] == 'client' and msg['command'] not in filters
+        ]
 
     def getServerMessages(self,buf):
         """
@@ -113,13 +106,7 @@ class ircMessage(object):
         except Exception:
             return None
 
-        entry_sc = []
-
-        for msg in self._messages:
-            if msg['type'] == 'server':
-                entry_sc.append(msg)
-
-        return entry_sc
+        return [msg for msg in self._messages if msg['type'] == 'server']
 
     def getServerMessagesFilter(self,buf,filters):
         """
@@ -132,12 +119,11 @@ class ircMessage(object):
         except Exception:
             return None
 
-        entry_sc = []
-        for msg in self._messages:
-            if msg['type'] == 'server' and msg['command'] not in filters:
-                entry_sc.append(msg)
-        
-        return entry_sc
+        return [
+            msg
+            for msg in self._messages
+            if msg['type'] == 'server' and msg['command'] not in filters
+        ]
 
     def isthereIRC(self,buf):
         """
@@ -148,9 +134,6 @@ class ircMessage(object):
 
         try:
             self._unpack(buf)
-            if self._messages:
-                return True
-            else:
-                return False
+            return bool(self._messages)
         except Exception:
             return False

@@ -45,13 +45,38 @@ class Sniffer:
             log.error("Network interface not defined, network capture aborted")
             return False
 
-        pargs = [self.tcpdump, '-U', '-q', '-i', interface, '-n']
-        pargs.extend(['-w', file_path])
-        pargs.extend(['host', host])
-        # Do not capture XMLRPC agent traffic.
-        pargs.extend(['and', 'not', '(', 'host', host, 'and', 'port', str(CUCKOO_GUEST_PORT), ')'])
-        # Do not capture ResultServer traffic.
-        pargs.extend(['and', 'not', '(', 'host', str(Config().resultserver.ip), 'and', 'port', str(Config().resultserver.port), ')'])
+        pargs = [
+            self.tcpdump,
+            '-U',
+            '-q',
+            '-i',
+            interface,
+            '-n',
+            *['-w', file_path],
+            *['host', host],
+            *[
+                'and',
+                'not',
+                '(',
+                'host',
+                host,
+                'and',
+                'port',
+                str(CUCKOO_GUEST_PORT),
+                ')',
+            ],
+            *[
+                'and',
+                'not',
+                '(',
+                'host',
+                str(Config().resultserver.ip),
+                'and',
+                'port',
+                str(Config().resultserver.port),
+                ')',
+            ],
+        ]
 
         try:
             self.proc = subprocess.Popen(pargs,
@@ -62,8 +87,10 @@ class Sniffer:
                           "dump path=%s)" % (interface, host, file_path))
             return False
 
-        log.info("Started sniffer (interface=%s, host=%s, dump path=%s)"
-                 % (interface, host, file_path))
+        log.info(
+            f"Started sniffer (interface={interface}, host={host}, dump path={file_path})"
+        )
+
 
         return True
 
@@ -81,8 +108,7 @@ class Sniffer:
                         self.proc.kill()
                 except OSError as e:
                     # Avoid "tying to kill a died process" error.
-                    log.debug("Error killing sniffer: %s. Continue" % e)
-                    pass
+                    log.debug(f"Error killing sniffer: {e}. Continue")
                 except Exception as e:
                     log.exception("Unable to stop the sniffer with pid %d"
                                   % self.proc.pid)

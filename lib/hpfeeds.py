@@ -73,25 +73,24 @@ class HPC(object):
 		try: self.s.connect((self.host, self.port))
 		except: raise FeedException('Could not connect to broker.')
 		self.connected = True
-		
+
 		try: d = self.s.recv(BUFSIZ)
 		except socket.timeout: raise FeedException('Connection receive timeout.')
-		
+
 		self.unpacker.feed(d)
 		for opcode, data in self.unpacker:
-			if opcode == OP_INFO:
-				rest = buffer(data, 0)
-				name, rest = rest[1:1+ord(rest[0])], buffer(rest, 1+ord(rest[0]))
-				rand = str(rest)
-
-				logger.debug('info message name: {0}, rand: {1}'.format(name, repr(rand)))
-				self.brokername = name
-				
-				self.s.send(msgauth(rand, self.ident, self.secret))
-				break
-			else:
+			if opcode != OP_INFO:
 				raise FeedException('Expected info message at this point.')
 
+			rest = buffer(data, 0)
+			name, rest = rest[1:1+ord(rest[0])], buffer(rest, 1+ord(rest[0]))
+			rand = str(rest)
+
+			logger.debug('info message name: {0}, rand: {1}'.format(name, repr(rand)))
+			self.brokername = name
+
+			self.s.send(msgauth(rand, self.ident, self.secret))
+			break
 		self.s.settimeout(None)
 
 	def _run(self, message_callback, error_callback):

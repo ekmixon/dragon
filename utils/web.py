@@ -95,7 +95,7 @@ def submit():
         context["error_priority"] = "Needs to be a number"
         errors = True
 
-    if data == None or data == "":
+    if data is None or data == "":
         context["error_toggle"] = True
         context["error_file"] = "Mandatory"
         errors = True
@@ -127,10 +127,11 @@ def view(task_id):
 
     report_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id, "reports", "report.html")
 
-    if not os.path.exists(report_path):
-        return HTTPError(code=404, output="Report not found")
-
-    return open(report_path, "rb").read()
+    return (
+        open(report_path, "rb").read()
+        if os.path.exists(report_path)
+        else HTTPError(code=404, output="Report not found")
+    )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

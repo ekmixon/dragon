@@ -25,11 +25,12 @@ class TestDictionary:
 
 class TestLocalDict:
     def setUp(self):
-        self.orig = {}
-        self.orig["foo"] = "bar"
-        self.orig["nested"] = {"foo": "bar"}
-        self.orig["dropped"] = []
-        self.orig["dropped"].append({"foo": "bar"})
+        self.orig = {
+            "foo": "bar",
+            "nested": {"foo": "bar"},
+            "dropped": [{"foo": "bar"}],
+        }
+
         self.backup = copy.deepcopy(self.orig)
         self.copy = LocalDict(self.orig)
 
@@ -40,14 +41,12 @@ class TestLocalDict:
         assert_equal(self.orig, self.backup)
 
     def test_list(self):
-        self.copy["test4"] = []
-        self.copy["test4"].append("foo")
+        self.copy["test4"] = ["foo"]
         self.copy["dropped"].append({"foo2": "bar"})
         assert_equal(self.orig, self.backup)
 
     def test_dict(self):
-        self.copy["test1"] = {}
-        self.copy["test1"]["foo"] = "bar"
+        self.copy["test1"] = {"foo": "bar"}
         self.copy["nested"]["foo2"] = "bar"
         assert_equal(self.orig, self.backup)
 

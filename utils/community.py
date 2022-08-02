@@ -23,7 +23,7 @@ def download_archive():
     try:
         data = urllib2.urlopen(URL).read()
     except Exception as e:
-        print("ERROR: Unable to download archive: %s" % e)
+        print(f"ERROR: Unable to download archive: {e}")
         sys.exit(-1)
 
     zip_data = StringIO()
@@ -59,10 +59,9 @@ def install(enabled, force, rewrite):
 
             destination = os.path.join(CUCKOO_ROOT, folder, file_name)
 
-            if not rewrite:
-                if os.path.exists(destination):
-                    print("File \"{0}\" already exists, {1}".format(file_name, colors.yellow("skipped")))
-                    continue
+            if not rewrite and os.path.exists(destination):
+                print("File \"{0}\" already exists, {1}".format(file_name, colors.yellow("skipped")))
+                continue
 
             install = False
 
@@ -97,14 +96,8 @@ def main():
     args = parser.parse_args()
 
     enabled = []
-    force = False
-    rewrite = False
-
     if args.all:
-        enabled.append("processing")
-        enabled.append("signatures")
-        enabled.append("reporting")
-        enabled.append("machinemanagers")
+        enabled.extend(("processing", "signatures", "reporting", "machinemanagers"))
     else:
         if args.signatures:
             enabled.append("signatures")
@@ -120,11 +113,8 @@ def main():
         parser.print_help()
         return
 
-    if args.force:
-        force = True
-    if args.rewrite:
-        rewrite = True
-
+    force = bool(args.force)
+    rewrite = bool(args.rewrite)
     install(enabled, force, rewrite)
 
 if __name__ == "__main__":

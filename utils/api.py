@@ -43,8 +43,6 @@ def custom_headers():
 
 @route("/tasks/create/file", method="POST")
 def tasks_create_file():
-    response = {}
-
     data = request.files.file
     package = request.forms.get("package", "")
     timeout = request.forms.get("timeout", "")
@@ -72,13 +70,11 @@ def tasks_create_file():
                           memory=memory,
                           enforce_timeout=enforce_timeout)
 
-    response["task_id"] = task_id
+    response = {"task_id": task_id}
     return jsonize(response)
 
 @route("/tasks/create/url", method="POST")
 def tasks_create_url():
-    response = {}
-
     url = request.forms.get("url")
     package = request.forms.get("package", "")
     timeout = request.forms.get("timeout", "")
@@ -105,15 +101,14 @@ def tasks_create_url():
                          memory=memory,
                          enforce_timeout=enforce_timeout)
 
-    response["task_id"] = task_id
+    response = {"task_id": task_id}
     return jsonize(response)
 
 @route("/tasks/list", method="GET")
 @route("/tasks/list/<limit>", method="GET")
 def tasks_list(limit=None):
-    response = {}
+    response = {"tasks": []}
 
-    response["tasks"] = []
     for row in db.list_tasks(limit).all():
         task = row.to_dict()
         task["guest"] = {}
@@ -130,42 +125,33 @@ def tasks_list(limit=None):
 
 @route("/tasks/view/<task_id>", method="GET")
 def tasks_view(task_id):
-    response = {}
-
-    task = db.view_task(task_id)
-    if task:
-        entry = task.to_dict()
-        entry["guest"] = {}
-        if task.guest:
-            entry["guest"] = task.guest.to_dict()
-
-        entry["errors"] = []
-        for error in task.errors:
-            entry["errors"].append(error.message)
-
-        response["task"] = entry
-    else:
+    if not (task := db.view_task(task_id)):
         return HTTPError(404, "Task not found")
 
+    entry = task.to_dict()
+    entry["guest"] = {}
+    if task.guest:
+        entry["guest"] = task.guest.to_dict()
+
+    entry["errors"] = []
+    for error in task.errors:
+        entry["errors"].append(error.message)
+
+    response = {"task": entry}
     return jsonize(response)
 
 @route("/tasks/delete/<task_id>", method="GET")
 def tasks_delete(task_id):
-    response = {}
-
-    task = db.view_task(task_id)
-    if task:
-        if task.status == "processing":
-            return HTTPError(500, "The task is currently being processed, cannot delete")
-
-        if db.delete_task(task_id):
-            delete_folder(os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id))
-            response["status"] = "OK"
-        else:
-            return HTTPError(500, "An error occurred while trying to delete the task")
-    else:
+    if not (task := db.view_task(task_id)):
         return HTTPError(404, "Task not found")
 
+    if task.status == "processing":
+        return HTTPError(500, "The task is currently being processed, cannot delete")
+
+    if not db.delete_task(task_id):
+        return HTTPError(500, "An error occurred while trying to delete the task")
+    delete_folder(os.path.join(CUCKOO_ROOT, "storage", "analyses", task_id))
+    response = {"status": "OK"}
     return jsonize(response)
 
 @route("/tasks/report/<task_id>", method="GET")
@@ -229,22 +215,16 @@ def files_get(sha256):
 
 @route("/machines/list", method="GET")
 def machines_list():
-    response = {}
-
     machines = db.list_machines()
 
-    response["machines"] = []
-    for row in machines:
-        response["machines"].append(row.to_dict())
-
+    response = {"machines": [row.to_dict() for row in machines]}
     return jsonize(response)
 
 @route("/machines/view/<name>", method="GET")
 def machines_view(name=None):
     response = {}
 
-    machine = db.view_machine(name=name)
-    if machine:
+    if machine := db.view_machine(name=name):
         response["machine"] = machine.to_dict()
     else:
         return HTTPError(404, "Machine not found")

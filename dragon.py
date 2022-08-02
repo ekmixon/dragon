@@ -16,7 +16,7 @@ try:
     from lib.dragon.core.startup import *
     from lib.dragon.core.scheduler import Scheduler
 except (CuckooDependencyError, ImportError) as e:
-    sys.exit("ERROR: Missing dependency: %s" % e)
+    sys.exit(f"ERROR: Missing dependency: {e}")
 
 log = logging.getLogger()
 
@@ -39,7 +39,13 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-q", "--quiet", help="Display only error messages", action="store_true", required=False)
     parser.add_argument("-d", "--debug", help="Display debug messages", action="store_true", required=False)
-    parser.add_argument("-v", "--version", action="version", version="You are running Dragon Sandbox %s" % CUCKOO_VERSION)
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"You are running Dragon Sandbox {CUCKOO_VERSION}",
+    )
+
     parser.add_argument("-a", "--artwork", help="Show artwork", action="store_true", required=False)
     args = parser.parse_args()
 
@@ -71,7 +77,7 @@ if __name__ == "__main__":
     try:
         main()
     except CuckooCriticalError as e:
-        message = "%s: %s" % (e.__class__.__name__, e)
+        message = f"{e.__class__.__name__}: {e}"
         if len(log.handlers) > 0:
             log.critical(message)
         else:

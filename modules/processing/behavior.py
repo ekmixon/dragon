@@ -65,12 +65,12 @@ class ParseProcessLog(list):
         @param b: call b
         @return: True if a == b else False
         """
-        if a["api"] == b["api"] and \
-           a["status"] == b["status"] and \
-           a["arguments"] == b["arguments"] and \
-           a["return"] == b["return"]:
-            return True
-        return False
+        return (
+            a["api"] == b["api"]
+            and a["status"] == b["status"]
+            and a["arguments"] == b["arguments"]
+            and a["return"] == b["return"]
+        )
 
     def wait_for_lastcall(self):
         while not self.lastcall:
@@ -123,7 +123,6 @@ class ParseProcessLog(list):
         @param row: row data.
         @return: parsed information dict.
         """
-        call = {}
         arguments = []
 
         try:
@@ -140,8 +139,6 @@ class ParseProcessLog(list):
         # Now walk through the remaining columns, which will contain API
         # arguments.
         for index in range(6, len(row)):
-            argument = {}
-
             # Split the argument name with its value based on the separator.
             try:                
                 (arg_name, arg_value) = row[index]
@@ -149,25 +146,25 @@ class ParseProcessLog(list):
                 log.debug("Unable to parse analysis row argument (row=%s): %s", row[index], e)
                 continue
 
-            argument["name"] = arg_name
-            argument["value"] = convert_to_printable(str(arg_value)).lstrip("\\??\\")
+            argument = {
+                "name": arg_name,
+                "value": convert_to_printable(str(arg_value)).lstrip("\\??\\"),
+            }
+
             arguments.append(argument)
 
-        call["timestamp"] = timestamp
-        call["thread_id"] = str(thread_id)
-        call["category"] = category
-        call["api"] = api_name
-        call["status"] = bool(int(status_value))
-
-        if isinstance(return_value, int):
-            call["return"] = "0x%.08x" % return_value
-        else:
-            call["return"] = convert_to_printable(str(return_value))
-
-        call["arguments"] = arguments
-        call["repeated"] = 0
-
-        return call
+        return {
+            "timestamp": timestamp,
+            "thread_id": str(thread_id),
+            "category": category,
+            "api": api_name,
+            "status": bool(int(status_value)),
+            "return": "0x%.08x" % return_value
+            if isinstance(return_value, int)
+            else convert_to_printable(str(return_value)),
+            "arguments": arguments,
+            "repeated": 0,
+        }
 
 class Processes:
     """Processes analyzer."""
@@ -196,13 +193,13 @@ class Processes:
 
             if os.path.isdir(file_path):
                 continue
-            
+
             if not file_path.endswith(".raw"):
                 continue
 
             # Invoke parsing of current log file.
             current_log = ParseProcessLog(file_path)
-            if current_log.process_id == None: continue
+            if current_log.process_id is None: continue
 
             # If the current log actually contains any data, add its data to
             # the global results list.
@@ -332,11 +329,12 @@ class ProcessTree:
         @return: True.
         """
         for entry in self.proc_results:
-            process = {}
-            process["name"] = entry["process_name"]
-            process["pid"] = int(entry["process_id"])
-            process["children"] = []
-            
+            process = {
+                "name": entry["process_name"],
+                "pid": int(entry["process_id"]),
+                "children": [],
+            }
+
             for call in entry["calls"]:
                 if call["api"] == "CreateProcessInternalW":
                     for argument in call["arguments"]:
@@ -356,14 +354,11 @@ class ProcessTree:
         """
         for process in tree:
             if process["pid"] == parent_id:
-                new = {}
-                new["name"] = node["name"]
-                new["pid"] = node["pid"]
-                new["children"] = []
+                new = {"name": node["name"], "pid": node["pid"], "children": []}
                 process["children"].append(new)
                 return True
             self.add_node(node, parent_id, process["children"])
-            
+
         return False
 
     def populate(self, node):
@@ -385,12 +380,14 @@ class ProcessTree:
         """
         if not self.proc_results or len(self.proc_results) == 0:
             return None
-    
+
         self.gen_proclist()
-        root = {}
-        root["name"] = self.processes[0]["name"]
-        root["pid"] = self.processes[0]["pid"]
-        root["children"] = []
+        root = {
+            "name": self.processes[0]["name"],
+            "pid": self.processes[0]["pid"],
+            "children": [],
+        }
+
         self.proctree.append(root)
         self.populate(self.processes[0])
 
@@ -405,8 +402,7 @@ class BehaviorAnalysis(Processing):
         """
         self.key = "behavior"
 
-        behavior = {}
-        behavior["processes"]   = Processes(self.logs_path).run()
+        behavior = {"processes": Processes(self.logs_path).run()}
         behavior["processtree"] = ProcessTree(behavior["processes"]).run()
         behavior["summary"]     = Summary(behavior["processes"]).run()
 

@@ -82,14 +82,14 @@ class PortableExecutable:
                 try:
                     symbols = []
                     for imported_symbol in entry.imports:
-                        symbol = {}
-                        symbol["address"] = hex(imported_symbol.address)
-                        symbol["name"] = imported_symbol.name
+                        symbol = {
+                            "address": hex(imported_symbol.address),
+                            "name": imported_symbol.name,
+                        }
+
                         symbols.append(symbol)
 
-                    imports_section = {}
-                    imports_section["dll"] = entry.dll
-                    imports_section["imports"] = symbols
+                    imports_section = {"dll": entry.dll, "imports": symbols}
                     imports.append(imports_section)
                 except:
                     continue
@@ -102,15 +102,19 @@ class PortableExecutable:
         """
         if not self.pe:
             return None
-        
+
         exports = []
-        
+
         if hasattr(self.pe, "DIRECTORY_ENTRY_EXPORT"):
             for exported_symbol in self.pe.DIRECTORY_ENTRY_EXPORT.symbols:
-                symbol = {}
-                symbol["address"] = hex(self.pe.OPTIONAL_HEADER.ImageBase + exported_symbol.address)
-                symbol["name"] = exported_symbol.name
-                symbol["ordinal"] = exported_symbol.ordinal
+                symbol = {
+                    "address": hex(
+                        self.pe.OPTIONAL_HEADER.ImageBase + exported_symbol.address
+                    ),
+                    "name": exported_symbol.name,
+                    "ordinal": exported_symbol.ordinal,
+                }
+
                 exports.append(symbol)
 
         return exports
@@ -126,8 +130,7 @@ class PortableExecutable:
 
         for entry in self.pe.sections:
             try:
-                section = {}
-                section["name"] = convert_to_printable(entry.Name.strip("\x00"))
+                section = {"name": convert_to_printable(entry.Name.strip("\x00"))}
                 section["virtual_address"] = hex(entry.VirtualAddress)
                 section["virtual_size"] = hex(entry.Misc_VirtualSize)
                 section["size_of_data"] = hex(entry.SizeOfRawData)
@@ -153,10 +156,10 @@ class PortableExecutable:
                     resource = {}
 
                     if resource_type.name is not None:
-                        name = "%s" % resource_type.name
+                        name = f"{resource_type.name}"
                     else:
-                        name = "%s" % pefile.RESOURCE_TYPE.get(resource_type.struct.Id)
-                    if name == None:
+                        name = f"{pefile.RESOURCE_TYPE.get(resource_type.struct.Id)}"
+                    if name is None:
                         name = "%d" % resource_type.struct.Id
 
                     if hasattr(resource_type, "directory"):
@@ -188,26 +191,25 @@ class PortableExecutable:
             return None
 
         infos = []
-        if hasattr(self.pe, "VS_VERSIONINFO"):
-            if hasattr(self.pe, "FileInfo"):
-                for entry in self.pe.FileInfo:
-                    try:
-                        if hasattr(entry, "StringTable"):
-                            for st_entry in entry.StringTable:
-                                for str_entry in st_entry.entries.items():
-                                    entry = {}
-                                    entry["name"] = convert_to_printable(str_entry[0])
-                                    entry["value"] = convert_to_printable(str_entry[1])
-                                    infos.append(entry)
-                        elif hasattr(entry, "Var"):
-                            for var_entry in entry.Var:
-                                if hasattr(var_entry, "entry"):
-                                    entry = {}
-                                    entry["name"] = convert_to_printable(var_entry.entry.keys()[0])
-                                    entry["value"] = convert_to_printable(var_entry.entry.values()[0])
-                                    infos.append(entry)
-                    except:
-                        continue
+        if hasattr(self.pe, "VS_VERSIONINFO") and hasattr(self.pe, "FileInfo"):
+            for entry in self.pe.FileInfo:
+                try:
+                    if hasattr(entry, "StringTable"):
+                        for st_entry in entry.StringTable:
+                            for str_entry in st_entry.entries.items():
+                                entry = {}
+                                entry["name"] = convert_to_printable(str_entry[0])
+                                entry["value"] = convert_to_printable(str_entry[1])
+                                infos.append(entry)
+                    elif hasattr(entry, "Var"):
+                        for var_entry in entry.Var:
+                            if hasattr(var_entry, "entry"):
+                                entry = {}
+                                entry["name"] = convert_to_printable(var_entry.entry.keys()[0])
+                                entry["value"] = convert_to_printable(var_entry.entry.values()[0])
+                                infos.append(entry)
+                except:
+                    continue
 
         return infos
 
@@ -223,8 +225,7 @@ class PortableExecutable:
         except pefile.PEFormatError:
             return None
 
-        results = {}
-        results["peid_signatures"] = self._get_peid_signatures()
+        results = {"peid_signatures": self._get_peid_signatures()}
         results["pe_imports"] = self._get_imported_symbols()
         results["pe_exports"] = self._get_exported_symbols()
         results["pe_sections"] = self._get_sections()
@@ -242,11 +243,10 @@ class Static(Processing):
         @return: results dict.
         """
         self.key = "static"
-        static = {}
-
-        if HAVE_PEFILE:
-            if self.task["category"] == "file":
-                if "PE32" in File(self.file_path).get_type():
-                    static = PortableExecutable(self.file_path).run()
-
-        return static
+        return (
+            PortableExecutable(self.file_path).run()
+            if HAVE_PEFILE
+            and self.task["category"] == "file"
+            and "PE32" in File(self.file_path).get_type()
+            else {}
+        )

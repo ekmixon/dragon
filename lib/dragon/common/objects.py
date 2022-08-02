@@ -69,12 +69,11 @@ class File:
         """Get file name.
         @return: file name.
         """
-        if self.strip_name:
-            file_name = os.path.basename(self.file_path)[:-4]
-        else:
-            file_name = os.path.basename(self.file_path)
-
-        return file_name
+        return (
+            os.path.basename(self.file_path)[:-4]
+            if self.strip_name
+            else os.path.basename(self.file_path)
+        )
 
     def valid(self):
         return os.path.exists(self.file_path) and \
@@ -90,12 +89,12 @@ class File:
     def get_chunks(self):
         """Read file contents in chunks (generator)."""
 
-        fd = open(self.file_path, "rb")
-        while True:
-            chunk = fd.read(FILE_CHUNK_SIZE)
-            if not chunk: break
-            yield chunk
-        fd.close()
+        with open(self.file_path, "rb") as fd:
+            while True:
+                if chunk := fd.read(FILE_CHUNK_SIZE):
+                    yield chunk
+                else:
+                    break
 
     def calc_hashes(self):
         """Calculate all possible hashes for this file."""
@@ -104,7 +103,7 @@ class File:
         sha1    = hashlib.sha1()
         sha256  = hashlib.sha256()
         sha512  = hashlib.sha512()
-        
+
         for chunk in self.get_chunks():
             crc = binascii.crc32(chunk, crc)
             md5.update(chunk)
@@ -243,8 +242,7 @@ class File:
         """Get all information available.
         @return: information dict.
         """
-        infos = {}
-        infos["name"] = self.get_name()
+        infos = {"name": self.get_name()}
         infos["path"] = self.file_path
         infos["size"] = self.get_size()
         infos["crc32"] = self.get_crc32()

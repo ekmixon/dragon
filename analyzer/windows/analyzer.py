@@ -39,7 +39,7 @@ PPID = Process(pid=PID).get_parent_pid()
 
 def add_pid(pid):
     """Add a process to process list."""
-    if type(pid) == long or type(pid) == int or type(pid) == str:
+    if type(pid) in [long, int, str]:
         log.info("Added new process to list with pid: %d" % pid)
         PROCESS_LIST.append(pid)
 
@@ -54,8 +54,10 @@ def add_pids(pids):
 def add_file(file_path):
     """Add a file to file list."""
     if file_path not in FILES_LIST:
-        log.info("Added new file to list with path: %s"
-                    % unicode(file_path).encode("utf-8", "replace"))
+        log.info(
+            f'Added new file to list with path: {unicode(file_path).encode("utf-8", "replace")}'
+        )
+
         FILES_LIST.append(file_path)
 
 def dump_file(file_path):
@@ -78,7 +80,7 @@ def dump_file(file_path):
     name = c_wchar_p()
     KERNEL32.GetFullPathNameW(file_path, 32 * 1024, path, byref(name))
     file_path = path.value
-    
+
     # Check if the path has a valid file name, otherwise it's a directory
     # and we should abort the dump.
     if name.value:
@@ -95,9 +97,9 @@ def dump_file(file_path):
 
         try:
             os.mkdir(dir_path)
-            dump_path = os.path.join(dir_path, "%s.bin" % file_name)
+            dump_path = os.path.join(dir_path, f"{file_name}.bin")
         except OSError as e:
-            dump_path = os.path.join(PATHS["files"], "%s.bin" % file_name)
+            dump_path = os.path.join(PATHS["files"], f"{file_name}.bin")
 
         break
 
@@ -177,7 +179,7 @@ class PipeHandler(Thread):
             #elif not success or bytes_read.value == 0:
             #    if KERNEL32.GetLastError() == ERROR_BROKEN_PIPE:
             #        pass
-            
+
             break
 
         if data:
@@ -188,8 +190,6 @@ class PipeHandler(Thread):
             # and the process ID of our parent process (agent.py).
             if command == "GETPIDS":
                 response = struct.pack("II", PID, PPID)
-            # In case of PID, the client is trying to notify the creation of
-            # a new process to be injected and monitored.
             elif command.startswith("PROCESS:"):
                 # We acquire the process lock in order to prevent the analyzer
                 # to terminate the analysis while we are operating on the new
@@ -200,64 +200,48 @@ class PipeHandler(Thread):
                 data = command[8:]
 
                 process_id = thread_id = None
-                if not "," in data:
+                if "," not in data:
                     if data.isdigit():
                         process_id = int(data)
                 elif len(data.split(",")) == 2:
                     process_id, thread_id = data.split(",")
-                    if process_id.isdigit():
-                        process_id = int(process_id)
-                    else:
-                        process_id = None
-
-                    if thread_id.isdigit():
-                        thread_id = int(thread_id)
-                    else:
-                        thread_id = None
-
+                    process_id = int(process_id) if process_id.isdigit() else None
+                    thread_id = int(thread_id) if thread_id.isdigit() else None
                 if process_id:
-                    if process_id not in (PID, PPID):
-                        # We inject the process only if it's not being monitored
-                        # already, otherwise we would generated polluted logs.
-                        if process_id not in PROCESS_LIST:
-                            # Add the new process ID to the list of monitored
-                            # processes.
-                            add_pids(process_id)
-
-                            # Open the process and inject the DLL.
-                            # Hope it enjoys it.
-                            proc = Process(pid=process_id,
-                                           thread_id=thread_id)
-
-                            # If we have both pid and tid, then we can use
-                            # apc to inject
-                            if process_id and thread_id:
-                                proc.inject(apc=True)
-                            else:
-                                # we inject using CreateRemoteThread, this
-                                # needs the waiting in order to make sure no
-                                # race conditions occur
-                                proc.inject()
-                                wait = True
-
-                            log.info("Successfully injected process with pid %d"
-                                     % proc.pid)
-                    else:
+                    if process_id in (PID, PPID):
                         log.warning("Received request to inject Cuckoo processes, skip")
 
+                    elif process_id not in PROCESS_LIST:
+                        # Add the new process ID to the list of monitored
+                        # processes.
+                        add_pids(process_id)
+
+                        # Open the process and inject the DLL.
+                        # Hope it enjoys it.
+                        proc = Process(pid=process_id,
+                                       thread_id=thread_id)
+
+                        # If we have both pid and tid, then we can use
+                        # apc to inject
+                        if process_id and thread_id:
+                            proc.inject(apc=True)
+                        else:
+                            # we inject using CreateRemoteThread, this
+                            # needs the waiting in order to make sure no
+                            # race conditions occur
+                            proc.inject()
+                            wait = True
+
+                        log.info("Successfully injected process with pid %d"
+                                 % proc.pid)
                 # Once we're done operating on the processes list, we release
                 # the lock.
                 PROCESS_LOCK.release()
-            # In case of FILE_NEW, the client is trying to notify the creation
-            # of a new file.
             elif command.startswith("FILE_NEW:"):
                 # We extract the file path.
                 file_path = command[9:].decode("utf-8")
                 # We add the file to the list.
                 add_file(file_path)
-            # In case of FILE_DEL, the client is trying to notify an ongoing
-            # deletion of an existing file, therefore we need to dump it
-            # straight away.
             elif command.startswith("FILE_DEL:"):
                 # Extract the file path.
                 file_path = command[9:].decode("utf-8")
@@ -393,15 +377,14 @@ class Analyzer:
                 # Split the options by comma.
                 fields = self.config.options.strip().split(",")
             except ValueError as e:
-                log.warning("Failed parsing the options: %s" % e)
+                log.warning(f"Failed parsing the options: {e}")
             else:
                 for field in fields:
                     # Split the name and the value of the option.
                     try:
                         key, value = field.strip().split("=")
                     except ValueError as e:
-                        log.warning("Failed parsing option (%s): %s"
-                                    % (field, e))
+                        log.warning(f"Failed parsing option ({field}): {e}")
                     else:
                         # If the parsing went good, we add the option to the
                         # dictionary.
@@ -425,9 +408,9 @@ class Analyzer:
         """
         self.prepare()
 
-        log.info("Starting analyzer from: %s" % os.getcwd())
-        log.info("Storing results at: %s" % PATHS["root"])
-        log.info("Pipe server name: %s" % PIPE)
+        log.info(f"Starting analyzer from: {os.getcwd()}")
+        log.info(f'Storing results at: {PATHS["root"]}')
+        log.info(f"Pipe server name: {PIPE}")
 
         # If no analysis package was specified at submission, we try to select
         # one automatically.
@@ -454,7 +437,7 @@ class Analyzer:
             package = self.config.package
 
         # Generate the package path.
-        package_name = "modules.packages.%s" % package
+        package_name = f"modules.packages.{package}"
 
         # Try to import the analysis package.
         try:
@@ -471,15 +454,17 @@ class Analyzer:
         try:
             package_class = Package.__subclasses__()[0]
         except IndexError as e:
-            raise CuckooError("Unable to select package class (package=%s): %s"
-                              % (package_name, e))
+            raise CuckooError(
+                f"Unable to select package class (package={package_name}): {e}"
+            )
+
 
         # Initialize the analysis package.
         pack = package_class(self.get_options())
 
         # Initialize Auxiliary modules
         Auxiliary()
-        prefix = auxiliaries.__name__ + "."
+        prefix = f"{auxiliaries.__name__}."
         for loader, name, ispkg in pkgutil.iter_modules(auxiliaries.__path__, prefix):
             if ispkg:
                 continue
@@ -499,12 +484,10 @@ class Analyzer:
                 aux = auxiliary()
                 aux.start()
             except (NotImplementedError, AttributeError):
-                log.warning("Auxiliary module %s was not implemented"
-                            % aux.__class__.__name__)
+                log.warning(f"Auxiliary module {aux.__class__.__name__} was not implemented")
                 continue
             except Exception as e:
-                log.warning("Cannot execute auxiliary module %s: %s"
-                            % (aux.__class__.__name__, e))
+                log.warning(f"Cannot execute auxiliary module {aux.__class__.__name__}: {e}")
                 continue
             finally:
                 aux_enabled.append(aux)
@@ -610,8 +593,7 @@ class Analyzer:
             try:
                 aux.stop()
             except Exception as e:
-                log.warning("Cannot terminate auxiliary module %s: %s"
-                            % (aux.__class__.__name__, e))
+                log.warning(f"Cannot terminate auxiliary module {aux.__class__.__name__}: {e}")
 
         # Let's invoke the completion procedure.
         self.complete()

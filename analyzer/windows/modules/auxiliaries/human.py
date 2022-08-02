@@ -22,16 +22,6 @@ RESOLUTION = {
 }
 
 def foreach_child(hwnd, lparam):
-    buttons = [
-        "&yes",
-        "&ok",
-        "&accept",
-        "&next",
-        "&install",
-        "&run",
-        "&agree"
-    ]
-
     classname = create_unicode_buffer(50)
     USER32.GetClassNameW(hwnd, classname, 50)
 
@@ -41,6 +31,16 @@ def foreach_child(hwnd, lparam):
         length = USER32.SendMessageW(hwnd, WM_GETTEXTLENGTH, 0, 0)
         text = create_unicode_buffer(length + 1)
         USER32.SendMessageW(hwnd, WM_GETTEXT, length + 1, text)
+
+        buttons = [
+            "&yes",
+            "&ok",
+            "&accept",
+            "&next",
+            "&install",
+            "&run",
+            "&agree"
+        ]
 
         # Check if the button is "positive".
         for button in buttons:

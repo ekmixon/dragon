@@ -27,7 +27,7 @@ def import_plugin(name):
         load_plugins(module)
 
 def import_package(package):
-    prefix = package.__name__ + "."
+    prefix = f"{package.__name__}."
     for loader, name, ispkg in pkgutil.iter_modules(package.__path__, prefix):
         if ispkg:
             continue
@@ -52,7 +52,4 @@ def register_plugin(group, name):
     group.append(name)
 
 def list_plugins(group=None):
-    if group:
-        return _modules[group]
-    else:
-        return _modules
+    return _modules[group] if group else _modules

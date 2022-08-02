@@ -21,7 +21,7 @@ class Strings(Processing):
             try:
                 data = open(self.file_path, "r").read()
             except (IOError, OSError) as e:
-                raise CuckooProcessingError("Error opening file %s" % e)
+                raise CuckooProcessingError(f"Error opening file {e}")
             strings = re.findall("[\x1f-\x7e]{6,}", data)
 
         return strings

@@ -23,7 +23,10 @@ class VMware(MachineManager):
         if not self.options.vmware.path:
             raise CuckooMachineError("VMware vmrun path missing, please add it to vmware.conf")
         if not os.path.exists(self.options.vmware.path):
-            raise CuckooMachineError("VMware vmrun not found in specified path %s" % self.options.vmware.path)
+            raise CuckooMachineError(
+                f"VMware vmrun not found in specified path {self.options.vmware.path}"
+            )
+
         # Consistency checks.
         for machine in self.machines():
             host, snapshot = self._parse_label(machine.label)
@@ -38,9 +41,12 @@ class VMware(MachineManager):
         @raise CuckooMachineError: if file not found or not ending with .vmx
         """
         if not host.endswith(".vmx"):
-            raise CuckooMachineError("Wrong configuration: vm path not ending with .vmx: %s)" % host)
+            raise CuckooMachineError(
+                f"Wrong configuration: vm path not ending with .vmx: {host})"
+            )
+
         if not os.path.exists(self.options.vmware.path):
-            raise CuckooMachineError("Vm file %s not found" % host)
+            raise CuckooMachineError(f"Vm file {host} not found")
 
     def _check_snapshot(self, host, snapshot):
         """Checks snapshot existance.
@@ -55,14 +61,16 @@ class VMware(MachineManager):
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE).communicate()
             if output:
-                if snapshot in output:
-                    return True
-                else:
-                    return False
+                return snapshot in output
             else:
-                raise CuckooMachineError("Unable to get snapshot list for %s. No output from `vmrun listSnapshots`" % host)
+                raise CuckooMachineError(
+                    f"Unable to get snapshot list for {host}. No output from `vmrun listSnapshots`"
+                )
+
         except OSError as e:
-            raise CuckooMachineError("Unable to get snapshot list for %s. Reason: %s" % (host, e))
+            raise CuckooMachineError(
+                f"Unable to get snapshot list for {host}. Reason: {e}"
+            )
 
     def start(self, label):
         """Start a virtual machine.
@@ -73,13 +81,13 @@ class VMware(MachineManager):
 
         # Preventive check
         if self._is_running(host):
-            raise CuckooMachineError("Machine %s is already running" % host)
+            raise CuckooMachineError(f"Machine {host} is already running")
 
         self._revert(host, snapshot)
 
         time.sleep(3)
 
-        log.debug("Starting vm %s" % host)
+        log.debug(f"Starting vm {host}")
         try:
             proc = subprocess.Popen([self.options.vmware.path,
                               "start",
@@ -90,10 +98,11 @@ class VMware(MachineManager):
             if self.options.vmware.mode.lower() == "gui":
                 output, error = proc.communicate()
                 if output:
-                    raise CuckooMachineError("Unable to start machine %s: %s" % (host, output))
+                    raise CuckooMachineError(f"Unable to start machine {host}: {output}")
         except OSError as e:
-            raise CuckooMachineError("Unable to start machine %s in %s mode: %s"
-                                     % (host, self.options.vmware.mode.upper(), e))
+            raise CuckooMachineError(
+                f"Unable to start machine {host} in {self.options.vmware.mode.upper()} mode: {e}"
+            )
 
     def stop(self, label):
         """Stops a virtual machine.
@@ -102,7 +111,7 @@ class VMware(MachineManager):
         """
         host, snapshot = self._parse_label(label)
 
-        log.debug("Stopping vm %s" % host)
+        log.debug(f"Stopping vm {host}")
         if self._is_running(host):
             try:
                 if subprocess.call([self.options.vmware.path,
@@ -111,11 +120,11 @@ class VMware(MachineManager):
                                    "hard"], # Machete never wait.
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE):
-                    raise CuckooMachineError("Error shutting down machine %s" % host)
+                    raise CuckooMachineError(f"Error shutting down machine {host}")
             except OSError as e:
-                raise CuckooMachineError("Error shutting down machine %s: %s" % (host, e))
+                raise CuckooMachineError(f"Error shutting down machine {host}: {e}")
         else:
-            log.warning("Trying to stop an already stopped machine: %s" % host)
+            log.warning(f"Trying to stop an already stopped machine: {host}")
 
     def _revert(self, host, snapshot):
         """Revets machine to snapshot.
@@ -123,7 +132,7 @@ class VMware(MachineManager):
         @param snapshot: snapshot name
         @raise CuckooMachineError: if unable to revert
         """
-        log.debug("Revert snapshot for vm %s" % host)
+        log.debug(f"Revert snapshot for vm {host}")
         try:
             if subprocess.call([self.options.vmware.path,
                                "revertToSnapshot",
@@ -131,9 +140,12 @@ class VMware(MachineManager):
                                snapshot],
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE):
-                raise CuckooMachineError("Unable to revert snapshot for machine %s: vmrun exited with error" % host)
+                raise CuckooMachineError(
+                    f"Unable to revert snapshot for machine {host}: vmrun exited with error"
+                )
+
         except OSError as e:
-            raise CuckooMachineError("Unable to revert snapshot for machine %s: %s" % (host, e))
+            raise CuckooMachineError(f"Unable to revert snapshot for machine {host}: {e}")
 
     def _is_running(self, host):
         """Checks if host is running.
@@ -146,14 +158,16 @@ class VMware(MachineManager):
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE).communicate()
             if output:
-                if host in output:
-                    return True
-                else:
-                    return False
+                return host in output
             else:
-                raise CuckooMachineError("Unable to check running status for %s. No output from `vmrun list`" % host)
+                raise CuckooMachineError(
+                    f"Unable to check running status for {host}. No output from `vmrun list`"
+                )
+
         except OSError as e:
-            raise CuckooMachineError("Unable to check running status for %s. Reason: %s" % (host, e))
+            raise CuckooMachineError(
+                f"Unable to check running status for {host}. Reason: {e}"
+            )
 
     def _parse_label(self, label):
         """Parse configuration file label.

@@ -22,7 +22,7 @@ def randomize_dll(dll_path):
     @return: new DLL path.
     """
     new_dll_name = random_string(6)
-    new_dll_path = os.path.join(os.getcwd(), "dll", "%s.dll" % new_dll_name)
+    new_dll_path = os.path.join(os.getcwd(), "dll", f"{new_dll_name}.dll")
 
     try:
         copy(dll_path, new_dll_path)
@@ -117,10 +117,7 @@ class Process:
                                               sizeof(pbi),
                                               byref(size))
 
-        if NT_SUCCESS(ret) and size.value == sizeof(pbi):
-            return pbi[5]
-
-        return None
+        return pbi[5] if NT_SUCCESS(ret) and size.value == sizeof(pbi) else None
 
     def execute(self, path, args=None, suspended=False):
         """Execute sample process.
@@ -138,28 +135,24 @@ class Process:
         startup_info.cb = sizeof(startup_info)
         process_info = PROCESS_INFORMATION()
 
-        if args:
-            arguments = "\"" + path + "\" " + args
-        else:
-            arguments = None
-
+        arguments = "\"" + path + "\" " + args if args else None
         creation_flags = CREATE_NEW_CONSOLE
         if suspended:
             self.suspended = True
             creation_flags += CREATE_SUSPENDED
 
-        created = KERNEL32.CreateProcessA(path,
-                                          arguments,
-                                          None,
-                                          None,
-                                          None,
-                                          creation_flags,
-                                          None,
-                                          os.getenv("TEMP"),
-                                          byref(startup_info),
-                                          byref(process_info))
-
-        if created:
+        if created := KERNEL32.CreateProcessA(
+            path,
+            arguments,
+            None,
+            None,
+            None,
+            creation_flags,
+            None,
+            os.getenv("TEMP"),
+            byref(startup_info),
+            byref(process_info),
+        ):
             self.pid = process_info.dwProcessId
             self.h_process = process_info.hProcess
             self.thread_id = process_info.dwThreadId
@@ -256,7 +249,7 @@ class Process:
         load_library = KERNEL32.GetProcAddress(kernel32_handle,
                                                "LoadLibraryA")
 
-        config_path = os.path.join(os.getenv("TEMP"), "%s.ini" % self.pid)
+        config_path = os.path.join(os.getenv("TEMP"), f"{self.pid}.ini")
         with open(config_path, "w") as config:
             cfg = Config("analysis.conf")
 
@@ -295,23 +288,18 @@ class Process:
 
             log.info("Using CreateRemoteThread injection")
             new_thread_id = c_ulong(0)
-            thread_handle = KERNEL32.CreateRemoteThread(self.h_process,
-                                                        None,
-                                                        0,
-                                                        load_library,
-                                                        arg,
-                                                        0,
-                                                        byref(new_thread_id))
-            if not thread_handle:
+            if thread_handle := KERNEL32.CreateRemoteThread(
+                self.h_process, None, 0, load_library, arg, 0, byref(new_thread_id)
+            ):
+                KERNEL32.CloseHandle(thread_handle)
+
+            else:
                 log.error("CreateRemoteThread failed when injecting " +
                     "process with pid %d (Error: %s)" % (self.pid,
                     get_error_string(KERNEL32.GetLastError())))
                 KERNEL32.CloseHandle(self.event_handle)
                 self.event_handle = None
                 return False
-            else:
-                KERNEL32.CloseHandle(thread_handle)
-
         return True
 
     def wait(self):
@@ -346,32 +334,29 @@ class Process:
         if not os.path.exists(root):
             os.makedirs(root)
 
-        dump = open(os.path.join(root, "%s.dmp" % str(self.pid)), "wb")
+        with open(os.path.join(root, f"{str(self.pid)}.dmp"), "wb") as dump:
+            while(mem < max_addr):
+                mbi = MEMORY_BASIC_INFORMATION()
+                count = c_ulong(0)
 
-        while(mem < max_addr):
-            mbi = MEMORY_BASIC_INFORMATION()
-            count = c_ulong(0)
+                if KERNEL32.VirtualQueryEx(self.h_process,
+                                           mem,
+                                           byref(mbi),
+                                           sizeof(mbi)) < sizeof(mbi):
+                    mem += page_size
+                    continue
 
-            if KERNEL32.VirtualQueryEx(self.h_process,
-                                       mem,
-                                       byref(mbi),
-                                       sizeof(mbi)) < sizeof(mbi):
-                mem += page_size
-                continue
-
-            if mbi.State == 0x1000 and mbi.Type == 0x20000:
-                buf = create_string_buffer(mbi.RegionSize)
-                if KERNEL32.ReadProcessMemory(self.h_process,
-                                              mem,
-                                              buf,
-                                              mbi.RegionSize,
-                                              byref(count)):
-                    dump.write(buf.raw)
-                mem += mbi.RegionSize
-            else:
-                mem += page_size
-
-        dump.close()
+                if mbi.State == 0x1000 and mbi.Type == 0x20000:
+                    buf = create_string_buffer(mbi.RegionSize)
+                    if KERNEL32.ReadProcessMemory(self.h_process,
+                                                  mem,
+                                                  buf,
+                                                  mbi.RegionSize,
+                                                  byref(count)):
+                        dump.write(buf.raw)
+                    mem += mbi.RegionSize
+                else:
+                    mem += page_size
 
         log.info("Memory dump of process with pid %d completed" % self.pid)
 

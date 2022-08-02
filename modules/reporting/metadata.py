@@ -31,19 +31,20 @@ class Metadata(Report):
     def addMetadata(self):
         """Generates header for MAEC xml and root components."""
         if self.results["target"]["category"] == "file":
-            id = "cuckoo:%s" % self.results["target"]["file"]["md5"]
+            id = f'cuckoo:{self.results["target"]["file"]["md5"]}'
         elif self.results["target"]["category"] == "url":
-            id = "cuckoo:%s" % hashlib.md5(self.results["target"]["url"]).hexdigest()
+            id = f'cuckoo:{hashlib.md5(self.results["target"]["url"]).hexdigest()}'
         else:
             raise CuckooReportError("Unknown target type")
 
         self.m = maec.malwareMetaData(
-            version = "1.1",
-            id = id,
-            author = "Cuckoo Sandbox %s" % self.results["info"]["version"],
-            comment = "Report created with Cuckoo Sandbox %s automated and open source malware sandbox: http://www.cuckoosandbox.org" % self.results["info"]["version"],
-            timestamp = datetime_to_iso(self.results["info"]["started"])
+            version="1.1",
+            id=id,
+            author=f'Cuckoo Sandbox {self.results["info"]["version"]}',
+            comment=f'Report created with Cuckoo Sandbox {self.results["info"]["version"]} automated and open source malware sandbox: http://www.cuckoosandbox.org',
+            timestamp=datetime_to_iso(self.results["info"]["started"]),
         )
+
         # Objects
         self.objects = maec.objectsType()
         self.m.set_objects(self.objects)
@@ -78,15 +79,19 @@ class Metadata(Report):
                 if not found:        
                     self.objects.add_file(self.createFileObject(f))
         # URI objects
-        if "network" in self.results and isinstance(self.results["network"], dict):
-            if "http" in self.results["network"] and isinstance(self.results["network"]["http"], list): 
-                for req in self.results["network"]["http"]:
-                    found = False
-                    for exist in self.objects.get_uri():
-                        if exist.get_id() == req["uri"]:
-                            found = True
-                    if not found:
-                        self.objects.add_uri(self.createUriObject(req))
+        if (
+            "network" in self.results
+            and isinstance(self.results["network"], dict)
+            and "http" in self.results["network"]
+            and isinstance(self.results["network"]["http"], list)
+        ):
+            for req in self.results["network"]["http"]:
+                found = False
+                for exist in self.objects.get_uri():
+                    if exist.get_id() == req["uri"]:
+                        found = True
+                if not found:
+                    self.objects.add_uri(self.createUriObject(req))
 
     def createFileObject(self, f):
         """Creates a file object.
@@ -134,7 +139,7 @@ class Metadata(Report):
             src = "file[@id='%s']" % self.results["target"]["file"]["md5"]
         elif self.results["target"]["category"] == "url":
             src = "url[@id='%s']" % hashlib.md5(self.results["target"]["url"]).hexdigest()
-        
+
         # Dropped files
         for file in self.results["dropped"]:
             self.relationships.add_relationship(self.createRelation(
@@ -202,16 +207,10 @@ class Metadata(Report):
         @return: IP object
         """
         return maec.IPObject(
-                             id = "%s-%s" % (ip, ip),
-                             startAddress = maec.IPAddress(
-                                                           type_ = "ipv4",
-                                                           valueOf_ = ip
-                                                           ),
-                             endAddress = maec.IPAddress(
-                                                           type_ = "ipv4",
-                                                           valueOf_ = ip
-                                                           )
-                             )
+            id=f"{ip}-{ip}",
+            startAddress=maec.IPAddress(type_="ipv4", valueOf_=ip),
+            endAddress=maec.IPAddress(type_="ipv4", valueOf_=ip),
+        )
 
     def createUriObject(self, req):
         """Creates URI object
@@ -235,11 +234,12 @@ class Metadata(Report):
                                         )
                           )
         if req["method"] == "POST":
-            prop.add_property(maec.property(
-                                        type_= "postData",
-                                        valueOf_ = "<![CDATA[%s]]>" % req["body"]
-                                        )
-                          )
+            prop.add_property(
+                maec.property(
+                    type_="postData", valueOf_=f'<![CDATA[{req["body"]}]]>'
+                )
+            )
+
         if "user-agent" in req:
             prop.add_property(maec.property(
                                         type_= "userAgent",
@@ -257,14 +257,13 @@ class Metadata(Report):
     def output(self):
         """Writes report to disk."""
         try:
-            report = open(os.path.join(self.reports_path, "report.metadata.xml"), "w")
-            report.write("<?xml version='1.0' ?>\n")
-            report.write("<!--\n")
-            report.write("Cuckoo Sandbox malware analysis report\n")
-            report.write("http://www.cuckoosandbox.org\n")
-            report.write("-->\n")
-            self.m.export(report, 0, namespace_ = "", namespacedef_ = "xmlns='http://xml/metadataSharing.xsd' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://xml/metadataSharing.xsd'")
-            report.close()
+            with open(os.path.join(self.reports_path, "report.metadata.xml"), "w") as report:
+                report.write("<?xml version='1.0' ?>\n")
+                report.write("<!--\n")
+                report.write("Cuckoo Sandbox malware analysis report\n")
+                report.write("http://www.cuckoosandbox.org\n")
+                report.write("-->\n")
+                self.m.export(report, 0, namespace_ = "", namespacedef_ = "xmlns='http://xml/metadataSharing.xsd' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://xml/metadataSharing.xsd'")
         except (TypeError, IOError) as e:
-            raise CuckooReportError("Failed to generate MAEC Metadata report: %s" % e)
+            raise CuckooReportError(f"Failed to generate MAEC Metadata report: {e}")
 

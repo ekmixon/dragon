@@ -33,18 +33,18 @@ class Report(Report):
     def addBundle(self):
         """Generates MAEC bundle structure."""
         if self.results["target"]["category"] == "file":
-            self.idMap["prefix"] = "maec:%s" % self.results["target"]["file"]["md5"]
+            self.idMap["prefix"] = f'maec:{self.results["target"]["file"]["md5"]}'
         elif self.results["target"]["category"] == "url":
             self.idMap["urlmd5"] = hashlib.md5(self.results["target"]["url"]).hexdigest()
-            self.idMap["prefix"] = "maec:%s" % self.idMap["urlmd5"]
+            self.idMap["prefix"] = f'maec:{self.idMap["urlmd5"]}'
         else:
             raise CuckooReportError("Unknown target type")
 
         # Generate bundle
         self.m = maec.BundleType(
-                                id = "%s:bnd:1" % self.idMap["prefix"], 
-                                schema_version="1.1"
-                                )
+            id=f'{self.idMap["prefix"]}:bnd:1', schema_version="1.1"
+        )
+
         # Analyses
         self.analyses = maec.AnalysesType()
         self.m.set_Analyses(self.analyses)
@@ -126,9 +126,7 @@ class Report(Report):
         """Create a network action.
         @return: action.
         """
-        act = maec.ActionType(
-                              id = "%s:act:%s" % (self.idMap["prefix"], self.getActionId()),
-                              )
+        act = maec.ActionType(id=f'{self.idMap["prefix"]}:act:{self.getActionId()}')
         act.set_Action_Initiator(maec.Action_InitiatorType(
                                                            type_ = "Process",
                                                            Initiator_Object = maec.ObjectReferenceType(
@@ -138,9 +136,9 @@ class Report(Report):
                                                            )
                                  )
         ai = maec.ActionImplementationType(
-                                           type_ = "Other",
-                                           id = "%s:imp:%s" % (self.idMap["prefix"], self.getActImpId()),
-                                           )
+            type_="Other", id=f'{self.idMap["prefix"]}:imp:{self.getActImpId()}'
+        )
+
         net = maec.Network_Action_AttributesType(
                                                  Internal_Port = packet["sport"],
                                                  External_Port = packet["dport"],
@@ -160,11 +158,12 @@ class Report(Report):
 
         for call in process["calls"]: 
             act = maec.ActionType(
-                                  id = "%s:act:%s" % (self.idMap["prefix"], self.getActionId()),
-                                  ordinal_position = pos,
-                                  timestamp = call["timestamp"],
-                                  successful = call["category"]
-                                  )
+                id=f'{self.idMap["prefix"]}:act:{self.getActionId()}',
+                ordinal_position=pos,
+                timestamp=call["timestamp"],
+                successful=call["category"],
+            )
+
             try:
                 initiator = self.idMap[process["process_name"]]
             except KeyError:
@@ -178,14 +177,16 @@ class Report(Report):
                                                                )
                                      )
             ai = maec.ActionImplementationType(
-                                               type_ = "API_Call",
-                                               id = "%s:imp:%s" % (self.idMap["prefix"], self.getActImpId()),
-                                               )
+                type_="API_Call",
+                id=f'{self.idMap["prefix"]}:imp:{self.getActImpId()}',
+            )
+
             apicall = maec.APICallType(
-                                       id = "%s:api:%s" % (self.idMap["prefix"], self.getApiCallId()),
-                                       apifunction_name = call["api"],
-                                       ReturnValue = call["return"]
-                                       )  
+                id=f'{self.idMap["prefix"]}:api:{self.getApiCallId()}',
+                apifunction_name=call["api"],
+                ReturnValue=call["return"],
+            )
+
             apos = 1
             for arg in call["arguments"]:
                 apicall.add_APICall_Parameter(maec.APICall_ParameterType(
@@ -207,10 +208,11 @@ class Report(Report):
         @requires: file object.
         """
         obj = maec.ObjectType(
-                              id = "%s:obj:%s" % (self.idMap["prefix"], self.getObjectId()), 
-                              object_name = file["name"],
-                              type_ = "File"
-                              )
+            id=f'{self.idMap["prefix"]}:obj:{self.getObjectId()}',
+            object_name=file["name"],
+            type_="File",
+        )
+
         self.idMap[file["name"]] = obj.id
 
         fs = maec.File_System_Object_AttributesType()
@@ -219,75 +221,79 @@ class Report(Report):
                                             )
                          )
         # Add static analysis if file obj is analysis subject.
-        if self.results["target"]["category"] == "file" and file["md5"] == self.results["target"]["file"]["md5"] and self.results["static"]:
-            if len(self.results["static"]) > 0:
-                pe = maec.PE_Binary_AttributesType(dll_count = self.results["static"]["imported_dll_count"])
-                # PE exports
-                if len(self.results["static"]["pe_exports"]) > 0:
-                    exports = maec.ExportsType()
-                    pe.set_Exports(exports)
-                    for x in self.results["static"]["pe_exports"]:
-                        exp = maec.PEExportType(
-                                                Function_Name = x["name"],
-                                                Ordinal = x["ordinal"],
-                                                Entry_Point = x["address"]
-                                                )
-                        exports.add_Export(exp)
-                # PE Imports
-                if len(self.results["static"]["pe_imports"]) > 0:
-                    imports = maec.ImportsType()
-                    pe.set_Imports(imports)
-                    for x in self.results["static"]["pe_imports"]:
-                        imp = maec.PEImportType(
-                                                File_Name = x["dll"]
-                                                )
-                        # Imported functions
-                        funcs = maec.Imported_FunctionsType()
-                        imp.set_Imported_Functions(funcs)
-                        for i in x["imports"]:
-                            f = maec.Imported_FunctionType(
-                                                           Function_Name = i["name"],
-                                                           Virtual_Address = i["address"]
-                                                           )
-                            funcs.add_Imported_Function(f)                      
-                        imports.add_Import(imp)
-                # Resources
-                if len(self.results["static"]["pe_resources"]) > 0:
-                    resources = maec.ResourcesType()
-                    pe.set_Resources(resources)
-                    for r in self.results["static"]["pe_resources"]:
-                        res = maec.PEResourceType(
-                                                Name = r["name"]
-                                                )
-                        resources.add_Resource(res)
-                # Sections
-                if len(self.results["static"]["pe_sections"]) > 0:
-                    sections = maec.SectionsType()
-                    pe.set_Sections(sections)
-                    for s in self.results["static"]["pe_sections"]:
-                        sec = maec.PESectionType(
-                                                Virtual_Size = int(s["virtual_size"], 16),
-                                                Virtual_Address = s["virtual_address"],
-                                                Entropy = s["entropy"],
-                                                Section_Name = s["name"]
-                                                )
-                        sections.add_Section(sec)
-                # Version info
-                if len(self.results["static"]["pe_versioninfo"]) > 0:
-                    version = maec.Version_BlockType()
-                    pe.set_Version_Block(version)
-                    for k in self.results["static"]["pe_versioninfo"]:
-                        if k["name"] == "ProductVersion":
-                            version.set_Product_Version_Text(k["value"])
-                        if k["name"] == "ProductName":
-                            version.set_Product_Name(k["value"])
-                        if k["name"] == "FileVersion":
-                            version.set_File_Version_Text(k["value"])
-                        if k["name"] == "CompanyName":
-                            version.set_Company_Name(k["value"])
-                        if k["name"] == "OriginalFilename":
-                            version.set_Original_File_Name(k["value"])
-                fs.set_File_Type_Attributes(maec.File_Type_AttributesType(pe))
+        if (
+            self.results["target"]["category"] == "file"
+            and file["md5"] == self.results["target"]["file"]["md5"]
+            and self.results["static"]
+            and len(self.results["static"]) > 0
+        ):
+            pe = maec.PE_Binary_AttributesType(dll_count = self.results["static"]["imported_dll_count"])
+            # PE exports
+            if len(self.results["static"]["pe_exports"]) > 0:
+                exports = maec.ExportsType()
+                pe.set_Exports(exports)
+                for x in self.results["static"]["pe_exports"]:
+                    exp = maec.PEExportType(
+                                            Function_Name = x["name"],
+                                            Ordinal = x["ordinal"],
+                                            Entry_Point = x["address"]
+                                            )
+                    exports.add_Export(exp)
+            # PE Imports
+            if len(self.results["static"]["pe_imports"]) > 0:
+                imports = maec.ImportsType()
+                pe.set_Imports(imports)
+                for x in self.results["static"]["pe_imports"]:
+                    imp = maec.PEImportType(
+                                            File_Name = x["dll"]
+                                            )
+                    # Imported functions
+                    funcs = maec.Imported_FunctionsType()
+                    imp.set_Imported_Functions(funcs)
+                    for i in x["imports"]:
+                        f = maec.Imported_FunctionType(
+                                                       Function_Name = i["name"],
+                                                       Virtual_Address = i["address"]
+                                                       )
+                        funcs.add_Imported_Function(f)                      
+                    imports.add_Import(imp)
+            # Resources
+            if len(self.results["static"]["pe_resources"]) > 0:
+                resources = maec.ResourcesType()
+                pe.set_Resources(resources)
+                for r in self.results["static"]["pe_resources"]:
+                    res = maec.PEResourceType(
+                                            Name = r["name"]
+                                            )
+                    resources.add_Resource(res)
+            # Sections
+            if len(self.results["static"]["pe_sections"]) > 0:
+                sections = maec.SectionsType()
+                pe.set_Sections(sections)
+                for s in self.results["static"]["pe_sections"]:
+                    sec = maec.PESectionType(
+                                            Virtual_Size = int(s["virtual_size"], 16),
+                                            Virtual_Address = s["virtual_address"],
+                                            Entropy = s["entropy"],
+                                            Section_Name = s["name"]
+                                            )
+                    sections.add_Section(sec)
+            # Version info
+            if len(self.results["static"]["pe_versioninfo"]) > 0:
+                version = maec.Version_BlockType()
+                pe.set_Version_Block(version)
+                for k in self.results["static"]["pe_versioninfo"]:
+                    if k["name"] == "ProductVersion":
+                        version.set_Product_Version_Text(k["value"])
+                    if k["name"] == "ProductName":
+                        version.set_Product_Name(k["value"])
+                    if k["name"] == "FileVersion":
+                        version.set_File_Version_Text(k["value"])
+                    if k["name"] == "CompanyName":
+                        version.set_Company_Name(k["value"])
+                    if k["name"] == "OriginalFilename":
+                        version.set_Original_File_Name(k["value"])
+            fs.set_File_Type_Attributes(maec.File_Type_AttributesType(pe))
         h = maec.HashesType()
         h.add_Hash(maec.HashType(
                                  type_ = "MD5",
@@ -359,23 +365,25 @@ class Report(Report):
         """
         tools = maec.Tools_UsedType()
         tool = maec.ToolType(
-                             id = "%s:tol:1" % self.idMap["prefix"],
-                             Name = "Cuckoo Sandbox",
-                             Version = self.results["info"]["version"],
-                             Organization = "http://www.cuckoosandbox.org"
-                             )
+            id=f'{self.idMap["prefix"]}:tol:1',
+            Name="Cuckoo Sandbox",
+            Version=self.results["info"]["version"],
+            Organization="http://www.cuckoosandbox.org",
+        )
+
         tools.add_Tool(tool)
         return tools
 
     def addAnalysis(self):
         """Adds analysis header."""
         analysis = maec.AnalysisType(
-                                id = "%s:ana:1" % self.idMap["prefix"],
-                                analysis_method = "Dynamic",
-                                start_datetime = datetime_to_iso(self.results["info"]["started"]),
-                                complete_datetime = datetime_to_iso(self.results["info"]["ended"]),
-                                lastupdate_datetime = datetime_to_iso(self.results["info"]["ended"])
-                                )
+            id=f'{self.idMap["prefix"]}:ana:1',
+            analysis_method="Dynamic",
+            start_datetime=datetime_to_iso(self.results["info"]["started"]),
+            complete_datetime=datetime_to_iso(self.results["info"]["ended"]),
+            lastupdate_datetime=datetime_to_iso(self.results["info"]["ended"]),
+        )
+
         # Add tool
         analysis.set_Tools_Used(self.createTools())
         # Add subject
@@ -383,7 +391,7 @@ class Report(Report):
             analysis.add_Subject(self.createSubjectFile(self.results["target"]["file"]))
         elif self.results["target"]["category"] == "url":
             analysis.add_Subject(self.createSubjectUrl(self.results["target"]["url"]))
-        
+
         self.analyses.add_Analysis(analysis)
 
     def addPools(self):
@@ -399,13 +407,12 @@ class Report(Report):
     def output(self):
         """Writes report to disk."""
         try:
-            report = open(os.path.join(self.reports_path, "report.maec-1.1.xml"), "w")
-            report.write("<?xml version='1.0' ?>\n")
-            report.write("<!--\n")
-            report.write("Cuckoo Sandbox MAEC 1.1 malware analysis report\n")
-            report.write("http://www.cuckoosandbox.org\n")
-            report.write("-->\n")
-            self.m.export(report, 0, namespace_ = "", name_ = "MAEC_Bundle", namespacedef_ = "xsi:schemaLocation='http://maec.mitre.org/XMLSchema/maec-core-1 file:MAEC_v1.1.xsd'")
-            report.close()
+            with open(os.path.join(self.reports_path, "report.maec-1.1.xml"), "w") as report:
+                report.write("<?xml version='1.0' ?>\n")
+                report.write("<!--\n")
+                report.write("Cuckoo Sandbox MAEC 1.1 malware analysis report\n")
+                report.write("http://www.cuckoosandbox.org\n")
+                report.write("-->\n")
+                self.m.export(report, 0, namespace_ = "", name_ = "MAEC_Bundle", namespacedef_ = "xsi:schemaLocation='http://maec.mitre.org/XMLSchema/maec-core-1 file:MAEC_v1.1.xsd'")
         except (TypeError, IOError) as e:
-            raise CuckooReportError("Failed to generate MAEC 1.1 report: %s" % e)
+            raise CuckooReportError(f"Failed to generate MAEC 1.1 report: {e}")

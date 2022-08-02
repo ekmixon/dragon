@@ -136,21 +136,20 @@ class AnalysisManager(Thread):
         """Generate analysis options.
         @return: options dict.
         """
-        options = {}
+        options = {
+            "id": self.task.id,
+            "ip": self.cfg.resultserver.ip,
+            "port": self.cfg.resultserver.port,
+            "category": self.task.category,
+            "target": self.task.target,
+            "package": self.task.package,
+            "options": self.task.options,
+            "enforce_timeout": self.task.enforce_timeout,
+            "timeout": self.cfg.timeouts.default
+            if not self.task.timeout or self.task.timeout == 0
+            else self.task.timeout,
+        }
 
-        options["id"] = self.task.id
-        options["ip"] = self.cfg.resultserver.ip
-        options["port"] = self.cfg.resultserver.port
-        options["category"] = self.task.category
-        options["target"] = self.task.target
-        options["package"] = self.task.package
-        options["options"] = self.task.options
-        options["enforce_timeout"] = self.task.enforce_timeout
-
-        if not self.task.timeout or self.task.timeout == 0:
-            options["timeout"] = self.cfg.timeouts.default
-        else:
-            options["timeout"] = self.task.timeout
 
         if self.task.category == "file":
             options["file_name"] = File(self.task.target).get_name()
@@ -169,10 +168,8 @@ class AnalysisManager(Thread):
         if not self.init_storage():
             return False
 
-        if self.task.category == "file":
-            # Store a copy of the original file.
-            if not self.store_file():
-                return False
+        if self.task.category == "file" and not self.store_file():
+            return False
 
         # Generate the analysis configuration file.
         options = self.build_options()
@@ -278,7 +275,7 @@ class AnalysisManager(Thread):
         try:
             logs_path = os.path.join(self.storage, "logs")
             for csv in os.listdir(logs_path):
-                if not '.raw' in csv: continue
+                if '.raw' not in csv: continue
                 csv = os.path.join(logs_path, csv)
                 if os.stat(csv).st_size > self.cfg.processing.analysis_size_limit:
                     log.error("Analysis file %s is too big to be processed, "
@@ -345,7 +342,7 @@ class Scheduler:
         mmanager = plugin()
 
         # Find its configuration file.
-        conf = os.path.join(CUCKOO_ROOT, "conf", "%s.conf" % mmanager_name)
+        conf = os.path.join(CUCKOO_ROOT, "conf", f"{mmanager_name}.conf")
 
         if not os.path.exists(conf):
             raise CuckooCriticalError("The configuration file for machine "
@@ -388,10 +385,7 @@ class Scheduler:
             if mmanager.availables() == 0:
                 continue
 
-            # Fetch a pending analysis task.
-            task = self.db.fetch_and_process()
-
-            if task:
+            if task := self.db.fetch_and_process():
                 log.debug("Processing task #%s", task.id)
 
                 # Initialize the analysis manager.

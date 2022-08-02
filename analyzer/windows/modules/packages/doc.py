@@ -22,11 +22,7 @@ class DOC(Package):
             os.path.join(os.getenv("ProgramFiles"), "Microsoft Office", "Office11", "WORDVIEW.EXE")
         ]
 
-        for path in paths:
-            if os.path.exists(path):
-                return path
-
-        return None
+        return next((path for path in paths if os.path.exists(path)), None)
 
     def start(self, path):
         word = self.get_path()
@@ -34,20 +30,16 @@ class DOC(Package):
             raise CuckooPackageError("Unable to find any Microsoft Office Word executable available")
 
         free = self.options.get("free", False)
-        suspended = True
-        if free:
-            suspended = False
-
+        suspended = not free
         p = Process()
         if not p.execute(path=word, args="\"%s\"" % path, suspended=suspended):
             raise CuckooPackageError("Unable to execute initial Microsoft Office Word process, analysis aborted")
 
-        if not free and suspended:
-            p.inject()
-            p.resume()
-            return p.pid
-        else:
+        if free or not suspended:
             return None
+        p.inject()
+        p.resume()
+        return p.pid
 
     def check(self):
         return True

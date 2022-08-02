@@ -297,15 +297,12 @@ class Database(object):
                     except CuckooOperationalError as e:
                         raise CuckooDatabaseError("Unable to create database "
                                                   "directory: %s" % e)
-            self.engine = create_engine("sqlite:///%s" % db_file, poolclass=NullPool)
+            self.engine = create_engine(f"sqlite:///{db_file}", poolclass=NullPool)
 
         # Disable SQL logging. Turn it on for debugging.
         self.engine.echo = False
         # Connection timeout.
-        if cfg.database.timeout:
-            self.engine.pool_timeout = cfg.database.timeout
-        else:
-            self.engine.pool_timeout = 60
+        self.engine.pool_timeout = cfg.database.timeout or 60
         # Create schema.
         try:
             Base.metadata.create_all(self.engine)
@@ -413,11 +410,7 @@ class Database(object):
         except SQLAlchemyError:
             return False
 
-        if success:
-            task.status = "success"
-        else:
-            task.status = "failure"
-
+        task.status = "success" if success else "failure"
         task.completed_on = datetime.now()
 
         try:

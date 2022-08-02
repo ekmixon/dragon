@@ -64,8 +64,7 @@ def check_configs():
 
     for config in configs:
         if not os.path.exists(config):
-            raise CuckooStartupError("Config file does not exist at path: %s"
-                                     % config)
+            raise CuckooStartupError(f"Config file does not exist at path: {config}")
 
     return True
 
@@ -125,13 +124,12 @@ class ConsoleHandler(logging.StreamHandler):
 
         if record.levelname == "WARNING":
             colored.msg = yellow(record.msg)
-        elif record.levelname == "ERROR" or record.levelname == "CRITICAL":
+        elif record.levelname in ["ERROR", "CRITICAL"]:
             colored.msg = red(record.msg)
+        elif "analysis procedure completed" in record.msg:
+            colored.msg = cyan(record.msg)
         else:
-            if "analysis procedure completed" in record.msg:
-                colored.msg = cyan(record.msg)
-            else:
-                colored.msg = record.msg
+            colored.msg = record.msg
 
         logging.StreamHandler.emit(self, colored)
 
@@ -154,19 +152,18 @@ def init_logging():
     log.addHandler(dh)
 
     if cfg.graylog.enabled:
-        if HAVE_GRAYPY:
-            gray = graypy.GELFHandler(cfg.graylog.host, cfg.graylog.port)
-
-            try:
-                level = logging.getLevelName(cfg.graylog.level.upper())
-            except ValueError:
-                level = logging.ERROR
-
-            gray.setLevel(level)
-            log.addHandler(gray)
-        else:
+        if not HAVE_GRAYPY:
             raise CuckooDependencyError("Graypy is not installed")
 
+        gray = graypy.GELFHandler(cfg.graylog.host, cfg.graylog.port)
+
+        try:
+            level = logging.getLevelName(cfg.graylog.level.upper())
+        except ValueError:
+            level = logging.ERROR
+
+        gray.setLevel(level)
+        log.addHandler(gray)
     log.setLevel(logging.INFO)
 
 def init_modules():
@@ -183,7 +180,7 @@ def init_modules():
                                          "conf",
                                          "reporting.conf"))
 
-    prefix = modules.reporting.__name__ + "."
+    prefix = f"{modules.reporting.__name__}."
     for loader, name, ispkg in pkgutil.iter_modules(modules.reporting.__path__):
         if ispkg:
             continue
@@ -197,11 +194,10 @@ def init_modules():
         if not options.enabled:
             continue
 
-        import_plugin("%s.%s" % (modules.reporting.__name__, name))
+        import_plugin(f"{modules.reporting.__name__}.{name}")
 
     # Import machine manager.
-    import_plugin("modules.machinemanagers.%s"
-                  % Config().cuckoo.machine_manager)
+    import_plugin(f"modules.machinemanagers.{Config().cuckoo.machine_manager}")
 
     for category, mods in list_plugins().items():
         log.debug("Imported \"%s\" modules:" % category)

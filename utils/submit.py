@@ -76,18 +76,18 @@ def main():
             files.append(path)
 
         for file_path in files:
-            task_id = db.add_path(file_path=file_path,
-                                  package=args.package,
-                                  timeout=args.timeout,
-                                  options=args.options,
-                                  priority=args.priority,
-                                  machine=args.machine,
-                                  platform=args.platform,
-                                  custom=args.custom,
-                                  memory=args.memory,
-                                  enforce_timeout=args.enforce_timeout)
-
-            if task_id:
+            if task_id := db.add_path(
+                file_path=file_path,
+                package=args.package,
+                timeout=args.timeout,
+                options=args.options,
+                priority=args.priority,
+                machine=args.machine,
+                platform=args.platform,
+                custom=args.custom,
+                memory=args.memory,
+                enforce_timeout=args.enforce_timeout,
+            ):
                 print(bold(green("Success")) + ": File \"{0}\" added as task with ID {1}".format(file_path, task_id))
             else:
                 print(bold(red("Error")) + ": adding task to database")

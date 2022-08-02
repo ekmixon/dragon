@@ -43,17 +43,14 @@ class MongoDB(Report):
         if not filename:
             filename = file_obj.get_name()
 
-        existing = self.db.fs.files.find_one({"md5": file_obj.get_md5()})
-
-        if existing:
+        if existing := self.db.fs.files.find_one({"md5": file_obj.get_md5()}):
             return existing["_id"]
-        else:
-            new = self.fs.new_file(filename=filename)
-            for chunk in file_obj.get_chunks():
-                new.write(chunk)
-            new.close()
+        new = self.fs.new_file(filename=filename)
+        for chunk in file_obj.get_chunks():
+            new.write(chunk)
+        new.close()
 
-            return new._id
+        return new._id
 
     def run(self, results):
         """Writes report.
@@ -121,7 +118,7 @@ class MongoDB(Report):
             chunk = []
             chunks_ids = []
             # Loop on each process call.
-            for index, call in enumerate(process["calls"]):
+            for call in process["calls"]:
                 # If the chunk size is 100 or if the loop is completed then
                 # store the chunk in MongoDB.
                 if len(chunk) == 100:

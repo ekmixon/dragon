@@ -45,12 +45,11 @@ class Screenshots(Auxiliary, Thread):
                 log.error("Cannot take screenshot: %s", e)
                 continue
 
-            if img_last:
-                if Screenshot().equal(img_last, img_current):
-                    continue
+            if img_last and Screenshot().equal(img_last, img_current):
+                continue
 
             img_counter += 1
-            save_at = os.path.join(PATHS["shots"], "%s.jpg" % str(img_counter).rjust(4, '0'))
+            save_at = os.path.join(PATHS["shots"], f"{str(img_counter).rjust(4, '0')}.jpg")
             img_current.save(save_at)
 
             img_last = img_current

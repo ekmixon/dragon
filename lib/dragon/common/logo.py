@@ -49,5 +49,5 @@ def logo():
 
     print(red(bold(apt)))
     print("")
-    print(" Dragon Sandbox " + yellow(CUCKOO_VERSION))
+    print(f" Dragon Sandbox {yellow(CUCKOO_VERSION)}")
     sys.stdout.flush()

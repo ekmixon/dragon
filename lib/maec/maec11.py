@@ -57,8 +57,7 @@ def parsexml_(*args, **kwargs):
         # Use the lxml ElementTree compatible parser so that, e.g.,
         #   we ignore comments.
         kwargs['parser'] = etree_.ETCompatXMLParser()
-    doc = etree_.parse(*args, **kwargs)
-    return doc
+    return etree_.parse(*args, **kwargs)
 
 #
 # User methods
@@ -81,7 +80,7 @@ except ImportError:
         def gds_validate_integer(self, input_data, node, input_name=''):
             return input_data
         def gds_format_integer_list(self, input_data, input_name=''):
-            return '%s' % input_data
+            return f'{input_data}'
         def gds_validate_integer_list(self, input_data, node, input_name=''):
             values = input_data.split()
             for value in values:
@@ -95,7 +94,7 @@ except ImportError:
         def gds_validate_float(self, input_data, node, input_name=''):
             return input_data
         def gds_format_float_list(self, input_data, input_name=''):
-            return '%s' % input_data
+            return f'{input_data}'
         def gds_validate_float_list(self, input_data, node, input_name=''):
             values = input_data.split()
             for value in values:
@@ -109,7 +108,7 @@ except ImportError:
         def gds_validate_double(self, input_data, node, input_name=''):
             return input_data
         def gds_format_double_list(self, input_data, input_name=''):
-            return '%s' % input_data
+            return f'{input_data}'
         def gds_validate_double_list(self, input_data, node, input_name=''):
             values = input_data.split()
             for value in values:
@@ -119,11 +118,11 @@ except ImportError:
                     raise_parse_error(node, 'Requires sequence of doubles')
             return input_data
         def gds_format_boolean(self, input_data, input_name=''):
-            return '%s' % input_data
+            return f'{input_data}'
         def gds_validate_boolean(self, input_data, node, input_name=''):
             return input_data
         def gds_format_boolean_list(self, input_data, input_name=''):
-            return '%s' % input_data
+            return f'{input_data}'
         def gds_validate_boolean_list(self, input_data, node, input_name=''):
             values = input_data.split()
             for value in values:
@@ -136,14 +135,12 @@ except ImportError:
             path_list = []
             self.get_path_list_(node, path_list)
             path_list.reverse()
-            path = '/'.join(path_list)
-            return path
+            return '/'.join(path_list)
         Tag_strip_pattern_ = re_.compile(r'\{.*\}')
         def get_path_list_(self, node, path_list):
             if node is None:
                 return
-            tag = GeneratedsSuper.Tag_strip_pattern_.sub('', node.tag)
-            if tag:
+            if tag := GeneratedsSuper.Tag_strip_pattern_.sub('', node.tag):
                 path_list.append(tag)
             self.get_path_list_(node.getparent(), path_list)
         def get_class_obj_(self, node, default_class=None):
@@ -191,30 +188,25 @@ Namespace_extract_pat_ = re_.compile(r'{(.*)}(.*)')
 #
 
 def showIndent(outfile, level):
-    for idx in range(level):
+    for _ in range(level):
         outfile.write('    ')
 
 def quote_xml(inStr):
     if not inStr:
         return ''
-    s1 = (isinstance(inStr, basestring) and inStr or
-          '%s' % inStr)
+    s1 = isinstance(inStr, basestring) and inStr or f'{inStr}'
     s1 = s1.replace('&', '&amp;')
     s1 = s1.replace('<', '&lt;')
     s1 = s1.replace('>', '&gt;')
     return s1
 
 def quote_attrib(inStr):
-    s1 = (isinstance(inStr, basestring) and inStr or
-          '%s' % inStr)
+    s1 = isinstance(inStr, basestring) and inStr or f'{inStr}'
     s1 = s1.replace('&', '&amp;')
     s1 = s1.replace('<', '&lt;')
     s1 = s1.replace('>', '&gt;')
     if '"' in s1:
-        if "'" in s1:
-            s1 = '"%s"' % s1.replace('"', "&quot;")
-        else:
-            s1 = "'%s'" % s1
+        s1 = '"%s"' % s1.replace('"', "&quot;") if "'" in s1 else "'%s'" % s1
     else:
         s1 = '"%s"' % s1
     return s1
@@ -222,23 +214,13 @@ def quote_attrib(inStr):
 def quote_python(inStr):
     s1 = inStr
     if s1.find("'") == -1:
-        if s1.find('\n') == -1:
-            return "'%s'" % s1
-        else:
-            return "'''%s'''" % s1
-    else:
-        if s1.find('"') != -1:
-            s1 = s1.replace('"', '\\"')
-        if s1.find('\n') == -1:
-            return '"%s"' % s1
-        else:
-            return '"""%s"""' % s1
+        return "'%s'" % s1 if s1.find('\n') == -1 else "'''%s'''" % s1
+    if s1.find('"') != -1:
+        s1 = s1.replace('"', '\\"')
+    return '"%s"' % s1 if s1.find('\n') == -1 else '"""%s"""' % s1
 
 def get_all_text_(node):
-    if node.text is not None:
-        text = node.text
-    else:
-        text = ''
+    text = node.text if node.text is not None else ''
     for child in node:
         if child.tail is not None:
             text += child.tail
@@ -265,7 +247,7 @@ def raise_parse_error(node, msg):
     if XMLParser_import_library == XMLParser_import_lxml:
         msg = '%s (element %s/line %d)' % (msg, node.tag, node.sourceline, )
     else:
-        msg = '%s (element %s)' % (msg, node.tag, )
+        msg = f'{msg} (element {node.tag})'
     raise GDSParseError(msg)
 
 
@@ -308,28 +290,31 @@ class MixedContainer:
             self.value.export(outfile, level, namespace,name)
     def exportSimple(self, outfile, level, name):
         if self.content_type == MixedContainer.TypeString:
-            outfile.write('<%s>%s</%s>' % (self.name, self.value, self.name))
-        elif self.content_type == MixedContainer.TypeInteger or \
-                self.content_type == MixedContainer.TypeBoolean:
+            outfile.write(f'<{self.name}>{self.value}</{self.name}>')
+        elif self.content_type in [
+            MixedContainer.TypeInteger,
+            MixedContainer.TypeBoolean,
+        ]:
             outfile.write('<%s>%d</%s>' % (self.name, self.value, self.name))
-        elif self.content_type == MixedContainer.TypeFloat or \
-                self.content_type == MixedContainer.TypeDecimal:
+        elif self.content_type in [
+            MixedContainer.TypeFloat,
+            MixedContainer.TypeDecimal,
+        ]:
             outfile.write('<%s>%f</%s>' % (self.name, self.value, self.name))
         elif self.content_type == MixedContainer.TypeDouble:
             outfile.write('<%s>%g</%s>' % (self.name, self.value, self.name))
     def exportLiteral(self, outfile, level, name):
-        if self.category == MixedContainer.CategoryText:
+        if self.category in [
+            MixedContainer.CategoryText,
+            MixedContainer.CategorySimple,
+        ]:
             showIndent(outfile, level)
             outfile.write('model_.MixedContainer(%d, %d, "%s", "%s"),\n' % \
-                (self.category, self.content_type, self.name, self.value))
-        elif self.category == MixedContainer.CategorySimple:
-            showIndent(outfile, level)
-            outfile.write('model_.MixedContainer(%d, %d, "%s", "%s"),\n' % \
-                (self.category, self.content_type, self.name, self.value))
+                    (self.category, self.content_type, self.name, self.value))
         else:    # category == MixedContainer.CategoryComplex
             showIndent(outfile, level)
             outfile.write('model_.MixedContainer(%d, %d, "%s",\n' % \
-                (self.category, self.content_type, self.name,))
+                    (self.category, self.content_type, self.name,))
             self.value.exportLiteral(outfile, level + 1)
             showIndent(outfile, level)
             outfile.write(')\n')
@@ -346,19 +331,14 @@ class MemberSpec_(object):
     def get_data_type_chain(self): return self.data_type
     def get_data_type(self):
         if isinstance(self.data_type, list):
-            if len(self.data_type) > 0:
-                return self.data_type[-1]
-            else:
-                return 'xs:string'
+            return self.data_type[-1] if len(self.data_type) > 0 else 'xs:string'
         else:
             return self.data_type
     def set_container(self, container): self.container = container
     def get_container(self): return self.container
 
 def _cast(typ, value):
-    if typ is None or value is None:
-        return value
-    return typ(value)
+    return value if typ is None or value is None else typ(value)
 
 #
 # Data representation classes.
@@ -379,11 +359,11 @@ class BundleType(GeneratedsSuper):
         self.Behaviors = Behaviors
         self.Actions = Actions
         self.Pools = Pools
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if BundleType.subclass:
-            return BundleType.subclass(*args_, **kwargs_)
+            return BundleType.subclass(*self, **kwargs_)
         else:
-            return BundleType(*args_, **kwargs_)
+            return BundleType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Analyses(self): return self.Analyses
     def set_Analyses(self, Analyses): self.Analyses = Analyses
@@ -399,7 +379,10 @@ class BundleType(GeneratedsSuper):
     def set_schema_version(self, schema_version): self.schema_version = schema_version
     def export(self, outfile, level, namespace_='maec:', name_='BundleType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='BundleType')
         if self.hasContent_():
@@ -412,7 +395,7 @@ class BundleType(GeneratedsSuper):
     def exportAttributes(self, outfile, level, already_processed, namespace_='maec:', name_='BundleType'):
         if self.id is not None and 'id' not in already_processed:
             already_processed.append('id')
-            outfile.write(' id=%s' % (quote_attrib(self.id), ))
+            outfile.write(f' id={quote_attrib(self.id)}')
         if self.schema_version is not None and 'schema_version' not in already_processed:
             already_processed.append('schema_version')
             outfile.write(' schema_version="%s"' % self.gds_format_float(self.schema_version, input_name='schema_version'))
@@ -426,15 +409,12 @@ class BundleType(GeneratedsSuper):
         if self.Pools is not None:
             self.Pools.export(outfile, level, namespace_, name_='Pools')
     def hasContent_(self):
-        if (
-            self.Analyses is not None or
-            self.Behaviors is not None or
-            self.Actions is not None or
-            self.Pools is not None
-            ):
-            return True
-        else:
-            return False
+        return (
+            self.Analyses is not None
+            or self.Behaviors is not None
+            or self.Actions is not None
+            or self.Pools is not None
+        )
     def exportLiteral(self, outfile, level, name_='BundleType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -490,7 +470,7 @@ class BundleType(GeneratedsSuper):
             try:
                 self.schema_version = float(value)
             except ValueError as e:
-                raise ValueError('Bad float/double attribute (schema_version): %s' % e)
+                raise ValueError(f'Bad float/double attribute (schema_version): {e}')
     def buildChildren(self, child_, node, nodeName_, fromsubclass_=False):
         if nodeName_ == 'Analyses':
             obj_ = AnalysesType.factory()
@@ -529,19 +509,16 @@ class BehaviorCollectionType(GeneratedsSuper):
             self.Behavior_Sub_Collection = []
         else:
             self.Behavior_Sub_Collection = Behavior_Sub_Collection
-        if Behavior is None:
-            self.Behavior = []
-        else:
-            self.Behavior = Behavior
+        self.Behavior = [] if Behavior is None else Behavior
         if Behavior_Reference is None:
             self.Behavior_Reference = []
         else:
             self.Behavior_Reference = Behavior_Reference
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if BehaviorCollectionType.subclass:
-            return BehaviorCollectionType.subclass(*args_, **kwargs_)
+            return BehaviorCollectionType.subclass(*self, **kwargs_)
         else:
-            return BehaviorCollectionType(*args_, **kwargs_)
+            return BehaviorCollectionType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Affinity_Type(self): return self.Affinity_Type
     def set_Affinity_Type(self, Affinity_Type): self.Affinity_Type = Affinity_Type
@@ -571,7 +548,10 @@ class BehaviorCollectionType(GeneratedsSuper):
     def set_name(self, name): self.name = name
     def export(self, outfile, level, namespace_='maec:', name_='BehaviorCollectionType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='BehaviorCollectionType')
         if self.hasContent_():
@@ -584,7 +564,7 @@ class BehaviorCollectionType(GeneratedsSuper):
     def exportAttributes(self, outfile, level, already_processed, namespace_='maec:', name_='BehaviorCollectionType'):
         if self.id is not None and 'id' not in already_processed:
             already_processed.append('id')
-            outfile.write(' id=%s' % (quote_attrib(self.id), ))
+            outfile.write(f' id={quote_attrib(self.id)}')
         if self.name is not None and 'name' not in already_processed:
             already_processed.append('name')
             outfile.write(' name=%s' % (self.gds_format_string(quote_attrib(self.name).encode(ExternalEncoding), input_name='name'), ))
@@ -609,19 +589,18 @@ class BehaviorCollectionType(GeneratedsSuper):
         for Behavior_Reference_ in self.Behavior_Reference:
             Behavior_Reference_.export(outfile, level, namespace_, name_='Behavior_Reference')
     def hasContent_(self):
-        if (
-            self.Affinity_Type is not None or
-            self.Affinity_Degree is not None or
-            self.Purpose is not None or
-            self.Description is not None or
-            self.Effects is not None or
-            self.Behavior_Sub_Collection or
-            self.Behavior or
-            self.Behavior_Reference
-            ):
-            return True
-        else:
-            return False
+        return bool(
+            (
+                self.Affinity_Type is not None
+                or self.Affinity_Degree is not None
+                or self.Purpose is not None
+                or self.Description is not None
+                or self.Effects is not None
+                or self.Behavior_Sub_Collection
+                or self.Behavior
+                or self.Behavior_Reference
+            )
+        )
     def exportLiteral(self, outfile, level, name_='BehaviorCollectionType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -776,11 +755,11 @@ class BehaviorType(GeneratedsSuper):
         self.Objects = Objects
         self.Effects = Effects
         self.Related_Behaviors = Related_Behaviors
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if BehaviorType.subclass:
-            return BehaviorType.subclass(*args_, **kwargs_)
+            return BehaviorType.subclass(*self, **kwargs_)
         else:
-            return BehaviorType(*args_, **kwargs_)
+            return BehaviorType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Purpose(self): return self.Purpose
     def set_Purpose(self, Purpose): self.Purpose = Purpose
@@ -806,7 +785,10 @@ class BehaviorType(GeneratedsSuper):
     def set_id(self, id): self.id = id
     def export(self, outfile, level, namespace_='maec:', name_='BehaviorType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='BehaviorType')
         if self.hasContent_():
@@ -828,7 +810,7 @@ class BehaviorType(GeneratedsSuper):
             outfile.write(' ordinal_position="%s"' % self.gds_format_integer(self.ordinal_position, input_name='ordinal_position'))
         if self.id is not None and 'id' not in already_processed:
             already_processed.append('id')
-            outfile.write(' id=%s' % (quote_attrib(self.id), ))
+            outfile.write(f' id={quote_attrib(self.id)}')
     def exportChildren(self, outfile, level, namespace_='maec:', name_='BehaviorType', fromsubclass_=False):
         if self.Purpose is not None:
             self.Purpose.export(outfile, level, namespace_, name_='Purpose')
@@ -845,18 +827,15 @@ class BehaviorType(GeneratedsSuper):
         if self.Related_Behaviors is not None:
             self.Related_Behaviors.export(outfile, level, namespace_, name_='Related_Behaviors')
     def hasContent_(self):
-        if (
-            self.Purpose is not None or
-            self.Description is not None or
-            self.Discovery_Method is not None or
-            self.Actions is not None or
-            self.Objects is not None or
-            self.Effects is not None or
-            self.Related_Behaviors is not None
-            ):
-            return True
-        else:
-            return False
+        return (
+            self.Purpose is not None
+            or self.Description is not None
+            or self.Discovery_Method is not None
+            or self.Actions is not None
+            or self.Objects is not None
+            or self.Effects is not None
+            or self.Related_Behaviors is not None
+        )
     def exportLiteral(self, outfile, level, name_='BehaviorType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -947,7 +926,7 @@ class BehaviorType(GeneratedsSuper):
             try:
                 self.ordinal_position = int(value)
             except ValueError as e:
-                raise_parse_error(node, 'Bad integer attribute: %s' % e)
+                raise_parse_error(node, f'Bad integer attribute: {e}')
             if self.ordinal_position <= 0:
                 raise_parse_error(node, 'Invalid PositiveInteger')
         value = find_attr_value_('id', node)
@@ -997,12 +976,11 @@ class BehaviorReferenceType(GeneratedsSuper):
     def __init__(self, type_=None, behavior_id=None):
         self.type_ = _cast(None, type_)
         self.behavior_id = _cast(None, behavior_id)
-        pass
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if BehaviorReferenceType.subclass:
-            return BehaviorReferenceType.subclass(*args_, **kwargs_)
+            return BehaviorReferenceType.subclass(*self, **kwargs_)
         else:
-            return BehaviorReferenceType(*args_, **kwargs_)
+            return BehaviorReferenceType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_type(self): return self.type_
     def set_type(self, type_): self.type_ = type_
@@ -1010,7 +988,10 @@ class BehaviorReferenceType(GeneratedsSuper):
     def set_behavior_id(self, behavior_id): self.behavior_id = behavior_id
     def export(self, outfile, level, namespace_='maec:', name_='BehaviorReferenceType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='BehaviorReferenceType')
         if self.hasContent_():
@@ -1025,16 +1006,11 @@ class BehaviorReferenceType(GeneratedsSuper):
             outfile.write(' type=%s' % (self.gds_format_string(quote_attrib(self.type_).encode(ExternalEncoding), input_name='type'), ))
         if self.behavior_id is not None and 'behavior_id' not in already_processed:
             already_processed.append('behavior_id')
-            outfile.write(' behavior_id=%s' % (quote_attrib(self.behavior_id), ))
+            outfile.write(f' behavior_id={quote_attrib(self.behavior_id)}')
     def exportChildren(self, outfile, level, namespace_='maec:', name_='BehaviorReferenceType', fromsubclass_=False):
         pass
     def hasContent_(self):
-        if (
-
-            ):
-            return True
-        else:
-            return False
+        return False
     def exportLiteral(self, outfile, level, name_='BehaviorReferenceType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -1089,20 +1065,14 @@ class ActionCollectionType(GeneratedsSuper):
             self.Action_Sub_Collection = []
         else:
             self.Action_Sub_Collection = Action_Sub_Collection
-        if Action is None:
-            self.Action = []
-        else:
-            self.Action = Action
-        if Action_Reference is None:
-            self.Action_Reference = []
-        else:
-            self.Action_Reference = Action_Reference
+        self.Action = [] if Action is None else Action
+        self.Action_Reference = [] if Action_Reference is None else Action_Reference
         self.Effects = Effects
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if ActionCollectionType.subclass:
-            return ActionCollectionType.subclass(*args_, **kwargs_)
+            return ActionCollectionType.subclass(*self, **kwargs_)
         else:
-            return ActionCollectionType(*args_, **kwargs_)
+            return ActionCollectionType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Affinity_Type(self): return self.Affinity_Type
     def set_Affinity_Type(self, Affinity_Type): self.Affinity_Type = Affinity_Type
@@ -1130,7 +1100,10 @@ class ActionCollectionType(GeneratedsSuper):
     def set_name(self, name): self.name = name
     def export(self, outfile, level, namespace_='maec:', name_='ActionCollectionType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='ActionCollectionType')
         if self.hasContent_():
@@ -1143,7 +1116,7 @@ class ActionCollectionType(GeneratedsSuper):
     def exportAttributes(self, outfile, level, already_processed, namespace_='maec:', name_='ActionCollectionType'):
         if self.id is not None and 'id' not in already_processed:
             already_processed.append('id')
-            outfile.write(' id=%s' % (quote_attrib(self.id), ))
+            outfile.write(f' id={quote_attrib(self.id)}')
         if self.name is not None and 'name' not in already_processed:
             already_processed.append('name')
             outfile.write(' name=%s' % (self.gds_format_string(quote_attrib(self.name).encode(ExternalEncoding), input_name='name'), ))
@@ -1165,18 +1138,17 @@ class ActionCollectionType(GeneratedsSuper):
         if self.Effects is not None:
             self.Effects.export(outfile, level, namespace_, name_='Effects')
     def hasContent_(self):
-        if (
-            self.Affinity_Type is not None or
-            self.Affinity_Degree is not None or
-            self.Description is not None or
-            self.Action_Sub_Collection or
-            self.Action or
-            self.Action_Reference or
-            self.Effects is not None
-            ):
-            return True
-        else:
-            return False
+        return bool(
+            (
+                self.Affinity_Type is not None
+                or self.Affinity_Degree is not None
+                or self.Description is not None
+                or self.Action_Sub_Collection
+                or self.Action
+                or self.Action_Reference
+                or self.Effects is not None
+            )
+        )
     def exportLiteral(self, outfile, level, name_='ActionCollectionType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -1349,11 +1321,11 @@ class ActionType(GeneratedsSuper):
         self.Objects = Objects
         self.Effects = Effects
         self.Related_Actions = Related_Actions
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if ActionType.subclass:
-            return ActionType.subclass(*args_, **kwargs_)
+            return ActionType.subclass(*self, **kwargs_)
         else:
-            return ActionType(*args_, **kwargs_)
+            return ActionType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Description(self): return self.Description
     def set_Description(self, Description): self.Description = Description
@@ -1383,7 +1355,10 @@ class ActionType(GeneratedsSuper):
     def set_id(self, id): self.id = id
     def export(self, outfile, level, namespace_='maec:', name_='ActionType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='ActionType')
         if self.hasContent_():
@@ -1399,7 +1374,7 @@ class ActionType(GeneratedsSuper):
             outfile.write(' successful="%s"' % self.gds_format_boolean(self.gds_str_lower(str(self.successful)), input_name='successful'))
         if self.timestamp is not None and 'timestamp' not in already_processed:
             already_processed.append('timestamp')
-            outfile.write(' timestamp=%s' % (quote_attrib(self.timestamp), ))
+            outfile.write(f' timestamp={quote_attrib(self.timestamp)}')
         if self.action_name is not None and 'action_name' not in already_processed:
             already_processed.append('action_name')
             outfile.write(' action_name=%s' % (self.gds_format_string(quote_attrib(self.action_name).encode(ExternalEncoding), input_name='action_name'), ))
@@ -1408,10 +1383,10 @@ class ActionType(GeneratedsSuper):
             outfile.write(' ordinal_position="%s"' % self.gds_format_integer(self.ordinal_position, input_name='ordinal_position'))
         if self.type_ is not None and 'type_' not in already_processed:
             already_processed.append('type_')
-            outfile.write(' type=%s' % (quote_attrib(self.type_), ))
+            outfile.write(f' type={quote_attrib(self.type_)}')
         if self.id is not None and 'id' not in already_processed:
             already_processed.append('id')
-            outfile.write(' id=%s' % (quote_attrib(self.id), ))
+            outfile.write(f' id={quote_attrib(self.id)}')
     def exportChildren(self, outfile, level, namespace_='maec:', name_='ActionType', fromsubclass_=False):
         if self.Description is not None:
             self.Description.export(outfile, level, namespace_, name_='Description')
@@ -1428,18 +1403,15 @@ class ActionType(GeneratedsSuper):
         if self.Related_Actions is not None:
             self.Related_Actions.export(outfile, level, namespace_, name_='Related_Actions')
     def hasContent_(self):
-        if (
-            self.Description is not None or
-            self.Discovery_Method is not None or
-            self.Action_Initiator is not None or
-            self.Action_Implementation is not None or
-            self.Objects is not None or
-            self.Effects is not None or
-            self.Related_Actions is not None
-            ):
-            return True
-        else:
-            return False
+        return (
+            self.Description is not None
+            or self.Discovery_Method is not None
+            or self.Action_Initiator is not None
+            or self.Action_Implementation is not None
+            or self.Objects is not None
+            or self.Effects is not None
+            or self.Related_Actions is not None
+        )
     def exportLiteral(self, outfile, level, name_='ActionType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -1542,7 +1514,7 @@ class ActionType(GeneratedsSuper):
             try:
                 self.ordinal_position = int(value)
             except ValueError as e:
-                raise_parse_error(node, 'Bad integer attribute: %s' % e)
+                raise_parse_error(node, f'Bad integer attribute: {e}')
             if self.ordinal_position <= 0:
                 raise_parse_error(node, 'Invalid PositiveInteger')
         value = find_attr_value_('type', node)
@@ -1596,12 +1568,11 @@ class ActionReferenceType(GeneratedsSuper):
     def __init__(self, type_=None, action_id=None):
         self.type_ = _cast(None, type_)
         self.action_id = _cast(None, action_id)
-        pass
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if ActionReferenceType.subclass:
-            return ActionReferenceType.subclass(*args_, **kwargs_)
+            return ActionReferenceType.subclass(*self, **kwargs_)
         else:
-            return ActionReferenceType(*args_, **kwargs_)
+            return ActionReferenceType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_type(self): return self.type_
     def set_type(self, type_): self.type_ = type_
@@ -1609,7 +1580,10 @@ class ActionReferenceType(GeneratedsSuper):
     def set_action_id(self, action_id): self.action_id = action_id
     def export(self, outfile, level, namespace_='maec:', name_='ActionReferenceType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='ActionReferenceType')
         if self.hasContent_():
@@ -1624,16 +1598,11 @@ class ActionReferenceType(GeneratedsSuper):
             outfile.write(' type=%s' % (self.gds_format_string(quote_attrib(self.type_).encode(ExternalEncoding), input_name='type'), ))
         if self.action_id is not None and 'action_id' not in already_processed:
             already_processed.append('action_id')
-            outfile.write(' action_id=%s' % (quote_attrib(self.action_id), ))
+            outfile.write(f' action_id={quote_attrib(self.action_id)}')
     def exportChildren(self, outfile, level, namespace_='maec:', name_='ActionReferenceType', fromsubclass_=False):
         pass
     def hasContent_(self):
-        if (
-
-            ):
-            return True
-        else:
-            return False
+        return False
     def exportLiteral(self, outfile, level, name_='ActionReferenceType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -1708,11 +1677,11 @@ class ObjectType(GeneratedsSuper):
         self.Network_Object_Attributes = Network_Object_Attributes
         self.Daemon_Object_Attributes = Daemon_Object_Attributes
         self.Custom_Object_Attributes = Custom_Object_Attributes
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if ObjectType.subclass:
-            return ObjectType.subclass(*args_, **kwargs_)
+            return ObjectType.subclass(*self, **kwargs_)
         else:
-            return ObjectType(*args_, **kwargs_)
+            return ObjectType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Object_Size(self): return self.Object_Size
     def set_Object_Size(self, Object_Size): self.Object_Size = Object_Size
@@ -1754,7 +1723,10 @@ class ObjectType(GeneratedsSuper):
     def set_id(self, id): self.id = id
     def export(self, outfile, level, namespace_='maec:', name_='ObjectType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='ObjectType')
         if self.hasContent_():
@@ -1773,10 +1745,10 @@ class ObjectType(GeneratedsSuper):
             outfile.write(' permanent="%s"' % self.gds_format_boolean(self.gds_str_lower(str(self.permanent)), input_name='permanent'))
         if self.type_ is not None and 'type_' not in already_processed:
             already_processed.append('type_')
-            outfile.write(' type=%s' % (quote_attrib(self.type_), ))
+            outfile.write(f' type={quote_attrib(self.type_)}')
         if self.id is not None and 'id' not in already_processed:
             already_processed.append('id')
-            outfile.write(' id=%s' % (quote_attrib(self.id), ))
+            outfile.write(f' id={quote_attrib(self.id)}')
     def exportChildren(self, outfile, level, namespace_='maec:', name_='ObjectType', fromsubclass_=False):
         if self.Object_Size is not None:
             self.Object_Size.export(outfile, level, namespace_, name_='Object_Size')
@@ -1809,26 +1781,23 @@ class ObjectType(GeneratedsSuper):
         if self.Custom_Object_Attributes is not None:
             self.Custom_Object_Attributes.export(outfile, level, namespace_, name_='Custom_Object_Attributes')
     def hasContent_(self):
-        if (
-            self.Object_Size is not None or
-            self.Classifications is not None or
-            self.Associated_Code is not None or
-            self.Related_Objects is not None or
-            self.File_System_Object_Attributes is not None or
-            self.GUI_Object_Attributes is not None or
-            self.IPC_Object_Attributes is not None or
-            self.Internet_Object_Attributes is not None or
-            self.Module_Object_Attributes is not None or
-            self.Registry_Object_Attributes is not None or
-            self.Process_Object_Attributes is not None or
-            self.Memory_Object_Attributes is not None or
-            self.Network_Object_Attributes is not None or
-            self.Daemon_Object_Attributes is not None or
-            self.Custom_Object_Attributes is not None
-            ):
-            return True
-        else:
-            return False
+        return (
+            self.Object_Size is not None
+            or self.Classifications is not None
+            or self.Associated_Code is not None
+            or self.Related_Objects is not None
+            or self.File_System_Object_Attributes is not None
+            or self.GUI_Object_Attributes is not None
+            or self.IPC_Object_Attributes is not None
+            or self.Internet_Object_Attributes is not None
+            or self.Module_Object_Attributes is not None
+            or self.Registry_Object_Attributes is not None
+            or self.Process_Object_Attributes is not None
+            or self.Memory_Object_Attributes is not None
+            or self.Network_Object_Attributes is not None
+            or self.Daemon_Object_Attributes is not None
+            or self.Custom_Object_Attributes is not None
+        )
     def exportLiteral(self, outfile, level, name_='ObjectType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -2044,11 +2013,11 @@ class EffectType(GeneratedsSuper):
         self.Affected_Objects = Affected_Objects
         self.Constituent_Effects = Constituent_Effects
         self.Vulnerability_Exploit = Vulnerability_Exploit
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if EffectType.subclass:
-            return EffectType.subclass(*args_, **kwargs_)
+            return EffectType.subclass(*self, **kwargs_)
         else:
-            return EffectType(*args_, **kwargs_)
+            return EffectType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Description(self): return self.Description
     def set_Description(self, Description): self.Description = Description
@@ -2062,7 +2031,10 @@ class EffectType(GeneratedsSuper):
     def set_id(self, id): self.id = id
     def export(self, outfile, level, namespace_='maec:', name_='EffectType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='EffectType')
         if self.hasContent_():
@@ -2075,7 +2047,7 @@ class EffectType(GeneratedsSuper):
     def exportAttributes(self, outfile, level, already_processed, namespace_='maec:', name_='EffectType'):
         if self.id is not None and 'id' not in already_processed:
             already_processed.append('id')
-            outfile.write(' id=%s' % (quote_attrib(self.id), ))
+            outfile.write(f' id={quote_attrib(self.id)}')
     def exportChildren(self, outfile, level, namespace_='maec:', name_='EffectType', fromsubclass_=False):
         if self.Description is not None:
             self.Description.export(outfile, level, namespace_, name_='Description')
@@ -2086,15 +2058,12 @@ class EffectType(GeneratedsSuper):
         if self.Vulnerability_Exploit is not None:
             self.Vulnerability_Exploit.export(outfile, level, namespace_, name_='Vulnerability_Exploit')
     def hasContent_(self):
-        if (
-            self.Description is not None or
-            self.Affected_Objects is not None or
-            self.Constituent_Effects is not None or
-            self.Vulnerability_Exploit is not None
-            ):
-            return True
-        else:
-            return False
+        return (
+            self.Description is not None
+            or self.Affected_Objects is not None
+            or self.Constituent_Effects is not None
+            or self.Vulnerability_Exploit is not None
+        )
     def exportLiteral(self, outfile, level, name_='EffectType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -2178,19 +2147,13 @@ class EffectCollectionType(GeneratedsSuper):
             self.Effect_Sub_Collection = []
         else:
             self.Effect_Sub_Collection = Effect_Sub_Collection
-        if Effect is None:
-            self.Effect = []
-        else:
-            self.Effect = Effect
-        if Effect_Reference is None:
-            self.Effect_Reference = []
-        else:
-            self.Effect_Reference = Effect_Reference
-    def factory(*args_, **kwargs_):
+        self.Effect = [] if Effect is None else Effect
+        self.Effect_Reference = [] if Effect_Reference is None else Effect_Reference
+    def factory(self, **kwargs_):
         if EffectCollectionType.subclass:
-            return EffectCollectionType.subclass(*args_, **kwargs_)
+            return EffectCollectionType.subclass(*self, **kwargs_)
         else:
-            return EffectCollectionType(*args_, **kwargs_)
+            return EffectCollectionType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Affinity_Type(self): return self.Affinity_Type
     def set_Affinity_Type(self, Affinity_Type): self.Affinity_Type = Affinity_Type
@@ -2216,7 +2179,10 @@ class EffectCollectionType(GeneratedsSuper):
     def set_name(self, name): self.name = name
     def export(self, outfile, level, namespace_='maec:', name_='EffectCollectionType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='EffectCollectionType')
         if self.hasContent_():
@@ -2229,7 +2195,7 @@ class EffectCollectionType(GeneratedsSuper):
     def exportAttributes(self, outfile, level, already_processed, namespace_='maec:', name_='EffectCollectionType'):
         if self.id is not None and 'id' not in already_processed:
             already_processed.append('id')
-            outfile.write(' id=%s' % (quote_attrib(self.id), ))
+            outfile.write(f' id={quote_attrib(self.id)}')
         if self.name is not None and 'name' not in already_processed:
             already_processed.append('name')
             outfile.write(' name=%s' % (self.gds_format_string(quote_attrib(self.name).encode(ExternalEncoding), input_name='name'), ))
@@ -2249,17 +2215,16 @@ class EffectCollectionType(GeneratedsSuper):
         for Effect_Reference_ in self.Effect_Reference:
             Effect_Reference_.export(outfile, level, namespace_, name_='Effect_Reference')
     def hasContent_(self):
-        if (
-            self.Affinity_Type is not None or
-            self.Affinity_Degree is not None or
-            self.Description is not None or
-            self.Effect_Sub_Collection or
-            self.Effect or
-            self.Effect_Reference
-            ):
-            return True
-        else:
-            return False
+        return bool(
+            (
+                self.Affinity_Type is not None
+                or self.Affinity_Degree is not None
+                or self.Description is not None
+                or self.Effect_Sub_Collection
+                or self.Effect
+                or self.Effect_Reference
+            )
+        )
     def exportLiteral(self, outfile, level, name_='EffectCollectionType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -2376,12 +2341,11 @@ class EffectReferenceType(GeneratedsSuper):
     def __init__(self, type_=None, effect_id=None):
         self.type_ = _cast(None, type_)
         self.effect_id = _cast(None, effect_id)
-        pass
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if EffectReferenceType.subclass:
-            return EffectReferenceType.subclass(*args_, **kwargs_)
+            return EffectReferenceType.subclass(*self, **kwargs_)
         else:
-            return EffectReferenceType(*args_, **kwargs_)
+            return EffectReferenceType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_type(self): return self.type_
     def set_type(self, type_): self.type_ = type_
@@ -2389,7 +2353,10 @@ class EffectReferenceType(GeneratedsSuper):
     def set_effect_id(self, effect_id): self.effect_id = effect_id
     def export(self, outfile, level, namespace_='maec:', name_='EffectReferenceType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='EffectReferenceType')
         if self.hasContent_():
@@ -2404,16 +2371,11 @@ class EffectReferenceType(GeneratedsSuper):
             outfile.write(' type=%s' % (self.gds_format_string(quote_attrib(self.type_).encode(ExternalEncoding), input_name='type'), ))
         if self.effect_id is not None and 'effect_id' not in already_processed:
             already_processed.append('effect_id')
-            outfile.write(' effect_id=%s' % (quote_attrib(self.effect_id), ))
+            outfile.write(f' effect_id={quote_attrib(self.effect_id)}')
     def exportChildren(self, outfile, level, namespace_='maec:', name_='EffectReferenceType', fromsubclass_=False):
         pass
     def hasContent_(self):
-        if (
-
-            ):
-            return True
-        else:
-            return False
+        return False
     def exportLiteral(self, outfile, level, name_='EffectReferenceType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -2453,29 +2415,20 @@ class StructuredTextType(GeneratedsSuper):
     subclass = None
     superclass = None
     def __init__(self, Text_Title=None, Text=None, Code_Example_Language=None, Code=None, Images=None, Block=None):
-        if Text_Title is None:
-            self.Text_Title = []
-        else:
-            self.Text_Title = Text_Title
-        if Text is None:
-            self.Text = []
-        else:
-            self.Text = Text
+        self.Text_Title = [] if Text_Title is None else Text_Title
+        self.Text = [] if Text is None else Text
         if Code_Example_Language is None:
             self.Code_Example_Language = []
         else:
             self.Code_Example_Language = Code_Example_Language
-        if Code is None:
-            self.Code = []
-        else:
-            self.Code = Code
+        self.Code = [] if Code is None else Code
         self.Images = Images
         self.Block = Block
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if StructuredTextType.subclass:
-            return StructuredTextType.subclass(*args_, **kwargs_)
+            return StructuredTextType.subclass(*self, **kwargs_)
         else:
-            return StructuredTextType(*args_, **kwargs_)
+            return StructuredTextType(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Text_Title(self): return self.Text_Title
     def set_Text_Title(self, Text_Title): self.Text_Title = Text_Title
@@ -2502,7 +2455,10 @@ class StructuredTextType(GeneratedsSuper):
     def set_Block(self, Block): self.Block = Block
     def export(self, outfile, level, namespace_='maec:', name_='StructuredTextType', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='StructuredTextType')
         if self.hasContent_():
@@ -2532,17 +2488,16 @@ class StructuredTextType(GeneratedsSuper):
         if self.Block is not None:
             self.Block.export(outfile, level, namespace_, name_='Block', )
     def hasContent_(self):
-        if (
-            self.Text_Title or
-            self.Text or
-            self.Code_Example_Language or
-            self.Code or
-            self.Images is not None or
-            self.Block is not None
-            ):
-            return True
-        else:
-            return False
+        return bool(
+            (
+                self.Text_Title
+                or self.Text
+                or self.Code_Example_Language
+                or self.Code
+                or self.Images is not None
+                or self.Block is not None
+            )
+        )
     def exportLiteral(self, outfile, level, name_='StructuredTextType'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)
@@ -2645,29 +2600,20 @@ class Block(GeneratedsSuper):
     superclass = None
     def __init__(self, Block_Nature=None, Text_Title=None, Text=None, Code_Example_Language=None, Code=None, Images=None, Block=None):
         self.Block_Nature = _cast(None, Block_Nature)
-        if Text_Title is None:
-            self.Text_Title = []
-        else:
-            self.Text_Title = Text_Title
-        if Text is None:
-            self.Text = []
-        else:
-            self.Text = Text
+        self.Text_Title = [] if Text_Title is None else Text_Title
+        self.Text = [] if Text is None else Text
         if Code_Example_Language is None:
             self.Code_Example_Language = []
         else:
             self.Code_Example_Language = Code_Example_Language
-        if Code is None:
-            self.Code = []
-        else:
-            self.Code = Code
+        self.Code = [] if Code is None else Code
         self.Images = Images
         self.Block = Block
-    def factory(*args_, **kwargs_):
+    def factory(self, **kwargs_):
         if Block.subclass:
-            return Block.subclass(*args_, **kwargs_)
+            return Block.subclass(*self, **kwargs_)
         else:
-            return Block(*args_, **kwargs_)
+            return Block(*self, **kwargs_)
     factory = staticmethod(factory)
     def get_Text_Title(self): return self.Text_Title
     def set_Text_Title(self, Text_Title): self.Text_Title = Text_Title
@@ -2696,7 +2642,10 @@ class Block(GeneratedsSuper):
     def set_Block_Nature(self, Block_Nature): self.Block_Nature = Block_Nature
     def export(self, outfile, level, namespace_='maec:', name_='Block', namespacedef_=''):
         showIndent(outfile, level)
-        outfile.write('<%s%s%s' % (namespace_, name_, namespacedef_ and ' ' + namespacedef_ or '', ))
+        outfile.write(
+            f"<{namespace_}{name_}{namespacedef_ and f' {namespacedef_}' or ''}"
+        )
+
         already_processed = []
         self.exportAttributes(outfile, level, already_processed, namespace_, name_='Block')
         if self.hasContent_():
@@ -2728,17 +2677,16 @@ class Block(GeneratedsSuper):
         if self.Block is not None:
             self.Block.export(outfile, level, namespace_, name_='Block', )
     def hasContent_(self):
-        if (
-            self.Text_Title or
-            self.Text or
-            self.Code_Example_Language or
-            self.Code or
-            self.Images is not None or
-            self.Block is not None
-            ):
-            return True
-        else:
-            return False
+        return bool(
+            (
+                self.Text_Title
+                or self.Text
+                or self.Code_Example_Language
+                or self.Code
+                or self.Images is not None
+                or self.Block is not None
+            )
+        )
     def exportLiteral(self, outfile, level, name_='Block'):
         level += 1
         self.exportLiteralAttributes(outfile, level, [], name_)

@@ -42,7 +42,7 @@ def grant_debug_privilege(pid=0):
                                      TOKEN_ALL_ACCESS,
                                      h_current_token):
         return False
-    
+
     se_original_luid = LUID()
     if not ADVAPI32.LookupPrivilegeValueW(None,
                                           "SeDebugPrivilege",
@@ -55,7 +55,7 @@ def grant_debug_privilege(pid=0):
     token_privs = TOKEN_PRIVILEGES()
     token_privs.PrivilegeCount = 1;
     token_privs.Privileges = luid_attributes; 
-    
+
     if not ADVAPI32.AdjustTokenPrivileges(h_current_token,
                                           False,
                                           token_privs,
@@ -63,7 +63,7 @@ def grant_debug_privilege(pid=0):
                                           None,
                                           None):
         return False
-    
+
     KERNEL32.CloseHandle(h_current_token)
     KERNEL32.CloseHandle(h_process)
 

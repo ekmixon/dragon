@@ -39,9 +39,8 @@ ip = 192.168.122.27
         """Loads a configuration from a string.
         @param conf: configuration string.
         """
-        f = open(self.file, "w")
-        f.write(conf)
-        f.close()
+        with open(self.file, "w") as f:
+            f.write(conf)
         self.m.set_options(Config(self.file))
 
     @raises(NotImplementedError)

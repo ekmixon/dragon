@@ -20,9 +20,8 @@ enabled = on
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
         self.cfg = tempfile.mkstemp()[1]
-        f = open(self.cfg, "w")
-        f.write(self.CONFIG)
-        f.close()
+        with open(self.cfg, "w") as f:
+            f.write(self.CONFIG)
         self.r = Reporter(self.tmp)
         self.r.cfg = Config(self.cfg)
 

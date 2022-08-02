@@ -36,8 +36,7 @@ def create_folder(root=".", folder=None):
             folder_path = os.path.join(root, folder)
             os.makedirs(folder_path)
         except OSError as e:
-            raise CuckooOperationalError("Unable to create folder: %s"
-                                         % folder_path)
+            raise CuckooOperationalError(f"Unable to create folder: {folder_path}")
 
 def delete_folder(folder):
     """Delete a folder and all its subdirectories.
@@ -55,10 +54,7 @@ def convert_char(c):
     @param c: dirty char.
     @return: sanitized char.
     """
-    if c in string.printable:
-        return c
-    else:
-        return r'\x%02x' % ord(c)
+    return c if c in string.printable else r'\x%02x' % ord(c)
 
 def convert_to_printable(s):
     """Convert char to printable.
@@ -80,7 +76,7 @@ def get_filename_from_path(path):
     @return: filename.
     """
     dirpath, filename = ntpath.split(path)
-    return filename if filename else ntpath.basename(dirpath)
+    return filename or ntpath.basename(dirpath)
 
 def store_temp_file(filedata, filename):
     """Store a temporary file.
@@ -100,18 +96,13 @@ def store_temp_file(filedata, filename):
 
     tmp_dir = tempfile.mkdtemp(prefix="upload_", dir=targetpath)
     tmp_file_path = os.path.join(tmp_dir, filename)
-    tmp_file = open(tmp_file_path, "wb")
-    
-    # if filedata is file object, do chunked copy
-    if hasattr(filedata, 'read'):
-        chunk = filedata.read(1024)
-        while chunk:
-            tmp_file.write(chunk)
-            chunk = filedata.read(1024)
-    else:
-        tmp_file.write(filedata)
-
-    tmp_file.close()
+    with open(tmp_file_path, "wb") as tmp_file:
+            # if filedata is file object, do chunked copy
+        if hasattr(filedata, 'read'):
+            while chunk := filedata.read(1024):
+                tmp_file.write(chunk)
+        else:
+            tmp_file.write(filedata)
 
     return tmp_file_path
 
@@ -145,10 +136,10 @@ class TimeoutTransport(xmlrpclib.Transport):
 # http://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
 class Singleton(type):
     _instances = {}
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
+    def __call__(self, *args, **kwargs):
+        if self not in self._instances:
+            self._instances[self] = super(Singleton, self).__call__(*args, **kwargs)
+        return self._instances[self]
 
 def logtime(dt):
     """formats time like a logger does, for the csv output 
@@ -158,8 +149,7 @@ def logtime(dt):
     @return: time string
     """
     t = time.strftime("%Y-%m-%d %H:%M:%S", dt.timetuple())
-    s = "%s,%03d" % (t, dt.microsecond/1000)
-    return s
+    return "%s,%03d" % (t, dt.microsecond/1000)
 
 def time_from_cuckoomon(s):
     """parse time string received from cuckoomon via netlog

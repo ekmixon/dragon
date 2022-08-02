@@ -71,11 +71,7 @@ class Pcap:
         @param name: hostname.
         @return: IP address or blank
         """
-        if Config().processing.resolve_dns:
-            ip = resolve(name)
-        else:
-            ip = ""
-        return ip
+        return resolve(name) if Config().processing.resolve_dns else ""
 
     def _add_domain(self, domain):
         """Add a domain to unique list.
@@ -107,10 +103,7 @@ class Pcap:
             r.method, r.version, r.uri = None, None, None
             r.unpack(tcpdata)
         except dpkt.dpkt.UnpackError:
-            if r.method != None or r.version != None or r.uri != None:
-                return True
-            return False
-
+            return r.method != None or r.version != None or r.uri != None
         return True
 
     def _add_http(self, tcpdata, dport):
@@ -125,12 +118,12 @@ class Pcap:
             pass
 
         try:
-            entry = {}
+            entry = {
+                "host": convert_to_printable(http.headers["host"])
+                if "host" in http.headers
+                else ""
+            }
 
-            if "host" in http.headers:
-                entry["host"] = convert_to_printable(http.headers["host"])
-            else:
-                entry["host"] = ""
 
             entry["port"] = dport
             entry["data"] = convert_to_printable(tcpdata)
@@ -167,84 +160,78 @@ class Pcap:
         """
         dns = dpkt.dns.DNS(udpdata)
 
-        # DNS query parsing.
-        query = {}
- 
-        if dns.rcode == dpkt.dns.DNS_RCODE_NOERR or \
-           dns.qr == dpkt.dns.DNS_R or \
-           dns.opcode == dpkt.dns.DNS_QUERY or True:
-            # DNS question.
-            try:
-                q_name = dns.qd[0].name
-                q_type = dns.qd[0].type
-            except IndexError:
-                return False
+        # DNS question.
+        try:
+            q_name = dns.qd[0].name
+            q_type = dns.qd[0].type
+        except IndexError:
+            return False
 
-            query["request"] = q_name
-            if q_type == dpkt.dns.DNS_A:
-                query["type"] = "A"
-            if q_type == dpkt.dns.DNS_AAAA:    
-                query["type"] = "AAAA"
-            elif q_type == dpkt.dns.DNS_CNAME:
-                query["type"] = "CNAME"
-            elif q_type == dpkt.dns.DNS_MX:
-                query["type"] = "MX"
-            elif q_type == dpkt.dns.DNS_PTR:
-                query["type"] = "PTR"
-            elif q_type == dpkt.dns.DNS_NS:
-                query["type"] = "NS"
-            elif q_type == dpkt.dns.DNS_SOA:
-                query["type"] = "SOA"
-            elif q_type == dpkt.dns.DNS_HINFO:
-                query["type"] = "HINFO"     
-            elif q_type == dpkt.dns.DNS_TXT:
-                query["type"] = "TXT"
-            elif q_type == dpkt.dns.DNS_SRV:
-                query["type"] = "SRV"
+        query = {"request": q_name}
+        if q_type == dpkt.dns.DNS_A:
+            query["type"] = "A"
+        if q_type == dpkt.dns.DNS_AAAA:    
+            query["type"] = "AAAA"
+        elif q_type == dpkt.dns.DNS_CNAME:
+            query["type"] = "CNAME"
+        elif q_type == dpkt.dns.DNS_MX:
+            query["type"] = "MX"
+        elif q_type == dpkt.dns.DNS_PTR:
+            query["type"] = "PTR"
+        elif q_type == dpkt.dns.DNS_NS:
+            query["type"] = "NS"
+        elif q_type == dpkt.dns.DNS_SOA:
+            query["type"] = "SOA"
+        elif q_type == dpkt.dns.DNS_HINFO:
+            query["type"] = "HINFO"     
+        elif q_type == dpkt.dns.DNS_TXT:
+            query["type"] = "TXT"
+        elif q_type == dpkt.dns.DNS_SRV:
+            query["type"] = "SRV"
 
-            # DNS answer.
-            query["answers"] = []
-            for answer in dns.an:
-                ans = {}
-                if answer.type == dpkt.dns.DNS_A:
-                    ans["type"] = "A"
-                    ans["data"] = socket.inet_ntoa(answer.rdata)
-                elif answer.type == dpkt.dns.DNS_AAAA:
-                    ans["type"] = "AAAA"
-                    ans["data"] = socket.inet_ntop(socket.AF_INET6, answer.rdata)
-                elif answer.type == dpkt.dns.DNS_CNAME:
-                    ans["type"] = "CNAME"
-                    ans["data"] = answer.cname
-                elif answer.type == dpkt.dns.DNS_MX:
-                    ans["type"] = "MX"
-                    ans["data"] = answer.mxname
-                elif answer.type == dpkt.dns.DNS_PTR:
-                    ans["type"] = "PTR"
-                    ans["data"] = answer.ptrname
-                elif answer.type == dpkt.dns.DNS_NS:
-                    ans["type"] = "NS"
-                    ans["data"] = answer.nsname   
-                elif answer.type == dpkt.dns.DNS_SOA:
-                    ans["type"] = "SOA"
-                    ans["data"] = ",".join(answer.mname,
-                                           answer.rname,
-                                           str(answer.serial),
-                                           str(answer.refresh),
-                                           str(answer.retry),
-                                           str(answer.expire),
-                                           str(answer.minimum)) 
-                elif answer.type == dpkt.dns.DNS_HINFO:
-                    ans["type"] = "HINFO"
-                    ans["data"] = " ".join(answer.text)             
-                elif answer.type == dpkt.dns.DNS_TXT:
-                    ans["type"] = "TXT"
-                    ans["data"] = " ".join(answer.text)
+        # DNS answer.
+        query["answers"] = []
+        for answer in dns.an:
+            ans = {}
+            if answer.type == dpkt.dns.DNS_A:
+                ans["type"] = "A"
+                ans["data"] = socket.inet_ntoa(answer.rdata)
+            elif answer.type == dpkt.dns.DNS_AAAA:
+                ans["type"] = "AAAA"
+                ans["data"] = socket.inet_ntop(socket.AF_INET6, answer.rdata)
+            elif answer.type == dpkt.dns.DNS_CNAME:
+                ans["type"] = "CNAME"
+                ans["data"] = answer.cname
+            elif answer.type == dpkt.dns.DNS_MX:
+                ans["type"] = "MX"
+                ans["data"] = answer.mxname
+            elif answer.type == dpkt.dns.DNS_PTR:
+                ans["type"] = "PTR"
+                ans["data"] = answer.ptrname
+            elif answer.type == dpkt.dns.DNS_NS:
+                ans["type"] = "NS"
+                ans["data"] = answer.nsname   
+            elif answer.type == dpkt.dns.DNS_SOA:
+                ans["type"] = "SOA"
+                ans["data"] = ",".join(answer.mname,
+                                       answer.rname,
+                                       str(answer.serial),
+                                       str(answer.refresh),
+                                       str(answer.retry),
+                                       str(answer.expire),
+                                       str(answer.minimum)) 
+            elif answer.type == dpkt.dns.DNS_HINFO:
+                ans["type"] = "HINFO"
+                ans["data"] = " ".join(answer.text)             
+            elif answer.type == dpkt.dns.DNS_TXT:
+                ans["type"] = "TXT"
+                ans["data"] = " ".join(answer.text)
 
-                # TODO: add srv handling
-                query["answers"].append(ans)
+            # TODO: add srv handling
+            query["answers"].append(ans)
 
-            self._add_domain(query["request"])
-            self.dns_requests.append(query)
+        self._add_domain(query["request"])
+        self.dns_requests.append(query)
 
         return True
 
@@ -284,9 +271,8 @@ class Pcap:
         @param conn: connection.
         @param data: payload data.
         """
-        if conn["dport"] == 53 or conn["sport"] == 53:
-            if self._check_dns(data):
-                self._add_dns(data)
+        if (conn["dport"] == 53 or conn["sport"] == 53) and self._check_dns(data):
+            self._add_dns(data)
 
     def _check_irc(self, tcpdata):
         """
@@ -339,7 +325,7 @@ class Pcap:
         try:
             file = open(self.filepath, "rb")
         except (IOError, OSError):
-            log.error("Unable to open %s" % self.filepath)
+            log.error(f"Unable to open {self.filepath}")
             return None
 
         try:
@@ -370,13 +356,12 @@ class Pcap:
 
                     tcp = ip.data
 
-                    if len(tcp.data) > 0:
-                        connection["sport"] = tcp.sport
-                        connection["dport"] = tcp.dport
-                        self._tcp_dissect(connection, tcp.data)
-                        self.tcp_connections.append(connection)
-                    else:
+                    if len(tcp.data) <= 0:
                         continue
+                    connection["sport"] = tcp.sport
+                    connection["dport"] = tcp.dport
+                    self._tcp_dissect(connection, tcp.data)
+                    self.tcp_connections.append(connection)
                 elif ip.p == dpkt.ip.IP_PROTO_UDP:
                     udp = ip.data
 
@@ -385,8 +370,8 @@ class Pcap:
                         connection["dport"] = udp.dport
                         self._udp_dissect(connection, udp.data)
                         self.udp_connections.append(connection)
-                #elif ip.p == dpkt.ip.IP_PROTO_ICMP:
-                    #icmp = ip.data
+                        #elif ip.p == dpkt.ip.IP_PROTO_ICMP:
+                            #icmp = ip.data
             except AttributeError:
                 continue
             except dpkt.dpkt.NeedData:

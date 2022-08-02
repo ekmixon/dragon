@@ -89,8 +89,7 @@ class Resultserver(SocketServer.ThreadingTCPServer, object):
         task, machine = self.get_ctx_for_ip(ip)
         if not task or not machine: return False
 
-        storagepath = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(task.id))
-        return storagepath
+        return os.path.join(CUCKOO_ROOT, "storage", "analyses", str(task.id))
 
 
 class Resulthandler(SocketServer.BaseRequestHandler):
@@ -121,24 +120,28 @@ class Resulthandler(SocketServer.BaseRequestHandler):
         buf = ''
         while len(buf) < length:
             if not self.wait_sock_or_end(): raise Disconnect()
-            tmp = self.request.recv(length-len(buf))
-            if not tmp: raise Disconnect()
-            buf += tmp
+            if tmp := self.request.recv(length - len(buf)):
+                buf += tmp
 
+            else:
+                raise Disconnect()
         if isinstance(self.protocol, NetlogParser):
-            if self.rawlogfd: self.rawlogfd.write(buf)
-            else: self.startbuf += buf
+            if self.rawlogfd:
+                if self.rawlogfd: self.rawlogfd.write(buf)
+            else:
+                self.startbuf += buf
         return buf
 
     def read_any(self):
         if not self.wait_sock_or_end(): raise Disconnect()
-        tmp = self.request.recv(BUFSIZE)
-        if not tmp: raise Disconnect()
-        return tmp
+        if tmp := self.request.recv(BUFSIZE):
+            return tmp
+        else:
+            raise Disconnect()
 
     def read_newline(self):
         buf = ''
-        while not "\n" in buf:
+        while "\n" not in buf:
             buf += self.read(1)
         return buf
 
@@ -190,10 +193,16 @@ class Resulthandler(SocketServer.BaseRequestHandler):
 
         # CSV format files are optional
         if self.server.cfg.resultserver.store_csvs:
-            self.logfd = open(os.path.join(self.storagepath, "logs", str(pid) + '.csv'), 'w')
+            self.logfd = open(
+                os.path.join(self.storagepath, "logs", f'{str(pid)}.csv'), 'w'
+            )
+
 
         # Netlog raw format is mandatory (postprocessing)
-        self.rawlogfd = open(os.path.join(self.storagepath, "logs", str(pid) + '.raw'), 'w')
+        self.rawlogfd = open(
+            os.path.join(self.storagepath, "logs", f'{str(pid)}.raw'), 'w'
+        )
+
         self.rawlogfd.write(self.startbuf)
         self.pid, self.ppid, self.procname = pid, ppid, procname
 
@@ -225,7 +234,7 @@ class Resulthandler(SocketServer.BaseRequestHandler):
             try:
                 create_folder(self.storagepath, folder=folder)
             except CuckooOperationalError:
-                log.error("Unable to create folder %s" % folder)
+                log.error(f"Unable to create folder {folder}")
                 return False
 
 
@@ -250,24 +259,20 @@ class FileUpload(object):
         if dir_part:
             try: create_folder(self.storagepath, dir_part)
             except CuckooOperationalError:
-                log.error("Unable to create folder %s" % folder)
+                log.error(f"Unable to create folder {folder}")
                 return False
 
         file_path = os.path.join(self.storagepath, buf.strip())
 
-        fd = open(file_path, "wb")
-        chunk = self.handler.read_any()
-        while chunk:
-            fd.write(chunk)
+        with open(file_path, "wb") as fd:
+            while chunk := self.handler.read_any():
+                fd.write(chunk)
 
-            if fd.tell() >= self.upload_max_size:
-                fd.write('... (truncated)')
-                break
+                if fd.tell() >= self.upload_max_size:
+                    fd.write('... (truncated)')
+                    break
 
-            chunk = self.handler.read_any()
-
-        log.debug("Uploaded file length: {0}".format(fd.tell()))
-        fd.close()
+            log.debug("Uploaded file length: {0}".format(fd.tell()))
 
 
 class LogHandler(object):

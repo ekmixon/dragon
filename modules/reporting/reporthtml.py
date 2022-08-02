@@ -89,8 +89,7 @@ class ReportHTML(Report):
                 if os.path.getsize(shot_path) == 0:
                     continue
 
-                shot = {}
-                shot["id"] = os.path.splitext(File(shot_path).get_name())[0]
+                shot = {"id": os.path.splitext(File(shot_path).get_name())[0]}
                 shot["data"] = base64.b64encode(open(shot_path, "rb").read())
                 shots.append(shot)
 
@@ -111,13 +110,12 @@ class ReportHTML(Report):
             tpl = env.get_template("report.html")
             html = tpl.render({"results" : results})
         except Exception as e:
-            raise CuckooReportError("Failed to generate HTML report: %s" % e)
-        
+            raise CuckooReportError(f"Failed to generate HTML report: {e}")
+
         try:
-            report = open(os.path.join(self.reports_path, "report.html"), "w")
-            report.write(html)
-            report.close()
+            with open(os.path.join(self.reports_path, "report.html"), "w") as report:
+                report.write(html)
         except (TypeError, IOError) as e:
-            raise CuckooReportError("Failed to write HTML report: %s" % e)
+            raise CuckooReportError(f"Failed to write HTML report: {e}")
 
         return True

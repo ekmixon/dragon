@@ -7,8 +7,10 @@ import string
 import random
 
 def _rand_string(a, b):
-    return "".join(random.choice(string.ascii_lowercase)
-                   for x in xrange(random.randint(a, b)))
+    return "".join(
+        random.choice(string.ascii_lowercase)
+        for _ in xrange(random.randint(a, b))
+    )
 
 ROOT = os.path.join(os.getenv("SystemDrive"), '\\', _rand_string(6, 10))
 

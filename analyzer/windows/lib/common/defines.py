@@ -115,7 +115,7 @@ class LUID_AND_ATTRIBUTES(Structure):
         ('Luid', LUID),
         ('Attributes', DWORD),
         ]
-    
+
 class TOKEN_PRIVILEGES(Structure):
     _fields_ = [
         ('PrivilegeCount', DWORD),

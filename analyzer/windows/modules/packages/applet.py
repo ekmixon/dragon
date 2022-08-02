@@ -19,26 +19,23 @@ class Applet(Package):
             os.path.join(os.getenv("ProgramFiles"), "Internet Explorer", "iexplore.exe")
         ]
 
-        for path in paths:
-            if os.path.exists(path):
-                return path
-
-        return None
+        return next((path for path in paths if os.path.exists(path)), None)
 
     def make_html(self, path, class_name):
-        html = "<html>"
-        html += "<body>"
+        html = "<html>" + "<body>"
         html += "<applet archive=\"%s\" code=\"%s\" width=\"1\" height=\"1\">" % (path, class_name)
         html += "</applet>"
         html += "</body>"
         html += "</html>"
 
-        file_name = "".join(random.choice(string.ascii_lowercase) for x in range(6)) + ".html"
-        file_path = os.path.join(os.getenv("TEMP"), file_name)
-        file_handle = open(file_path, "w")
-        file_handle.write(html)
-        file_handle.close()
+        file_name = (
+            "".join(random.choice(string.ascii_lowercase) for _ in range(6))
+            + ".html"
+        )
 
+        file_path = os.path.join(os.getenv("TEMP"), file_name)
+        with open(file_path, "w") as file_handle:
+            file_handle.write(html)
         return file_path
 
     def start(self, path):
@@ -48,22 +45,18 @@ class Applet(Package):
 
         free = self.options.get("free", False)
         class_name = self.options.get("class", None)
-        suspended = True
-        if free:
-            suspended = False
-
+        suspended = not free
         html_path = self.make_html(path, class_name)
 
         p = Process()
         if not p.execute(path=browser, args="\"%s\"" % html_path, suspended=suspended):
             raise CuckooPackageError("Unable to execute initial Internet Exploer process, analysis aborted")
 
-        if not free and suspended:
-            p.inject()
-            p.resume()
-            return p.pid
-        else:
+        if free or not suspended:
             return None
+        p.inject()
+        p.resume()
+        return p.pid
 
     def check(self):
         return True

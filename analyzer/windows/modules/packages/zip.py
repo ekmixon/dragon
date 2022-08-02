@@ -29,20 +29,16 @@ class Zip(Package):
         file_path = os.path.join(root, self.options.get("file", "sample.exe"))
         free = self.options.get("free", False)
         args = self.options.get("arguments", None)
-        suspended = True
-        if free:
-            suspended = False
-
+        suspended = not free
         p = Process()
         if not p.execute(path=file_path, args=args, suspended=suspended):
             raise CuckooPackageError("Unable to execute initial process, analysis aborted")
 
-        if not free and suspended:
-            p.inject()
-            p.resume()
-            return p.pid
-        else:
+        if free or not suspended:
             return None
+        p.inject()
+        p.resume()
+        return p.pid
 
     def check(self):
         return True

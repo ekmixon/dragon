@@ -90,8 +90,7 @@ class NetlogParser(object):
             for pos in range(len(formatspecifiers)):
                 fs = formatspecifiers[pos]
                 argname = argnames[pos]
-                fn = self.formatmap.get(fs, None)
-                if fn:
+                if fn := self.formatmap.get(fs, None):
                     r = fn()
                     arguments.append((argname, r))
                 else:
@@ -129,19 +128,18 @@ class NetlogParser(object):
         """Read logged registry data from the socket."""
         typ = struct.unpack('I', self.handler.read(4))[0]
         # do something depending on type
-        if typ == REG_DWORD_BIG_ENDIAN or typ == REG_DWORD_LITTLE_ENDIAN:
-            value = self.read_int32()
-        elif typ == REG_SZ or typ == REG_EXPAND_SZ:
-            value = self.read_string()
+        if typ in [REG_DWORD_BIG_ENDIAN, REG_DWORD_LITTLE_ENDIAN]:
+            return self.read_int32()
+        elif typ in [REG_SZ, REG_EXPAND_SZ]:
+            return self.read_string()
         else:
-            value = '(unable to dump buffer content)'
-        return value
+            return '(unable to dump buffer content)'
 
     def read_list(self, fn):
         """Reads a list of _fn_ from the socket."""
         count = struct.unpack('I', self.handler.read(4))[0]
         ret = []
-        for x in xrange(count):
+        for _ in xrange(count):
             item = fn()
             ret.append(item)
         return ret

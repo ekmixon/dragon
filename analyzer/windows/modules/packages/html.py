@@ -13,20 +13,16 @@ class HTML(Package):
 
     def start(self, path):
         free = self.options.get("free", False)
-        suspended = True
-        if free:
-            suspended = False
-
+        suspended = not free
         p = Process()
         if not p.execute(path=os.path.join(os.getenv("ProgramFiles"), "Internet Explorer", "iexplore.exe"), args="\"%s\"" % path, suspended=suspended):
             raise CuckooPackageError("Unable to execute initial Internet Explorer process, analysis aborted")
 
-        if not free and suspended:
-            p.inject()
-            p.resume()
-            return p.pid
-        else:
+        if free or not suspended:
             return None
+        p.inject()
+        p.resume()
+        return p.pid
 
     def check(self):
         return True

@@ -99,8 +99,7 @@ class Processor:
                               % (current.name, current.minimum))
                     return None
             except ValueError:
-                log.debug("Wrong minor version number in signature %s"
-                          % current.name)
+                log.debug(f"Wrong minor version number in signature {current.name}")
                 return None
 
         # If provided, check the maximum working Cuckoo version for this
@@ -116,8 +115,7 @@ class Processor:
                               % (current.name, current.maximum))
                     return None
             except ValueError:
-                log.debug("Wrong major version number in signature %s"
-                          % current.name)
+                log.debug(f"Wrong major version number in signature {current.name}")
                 return None
 
         try:
@@ -167,20 +165,15 @@ class Processor:
 
         # Run every loaded processing module.
         for module in modules_list:
-            result = self._run_processing(module)
-            # If it provided some results, append it to the big results
-            # container.
-            if result:
-                results.update(result)
+            if result := self._run_processing(module):
+                results |= result
 
         # This will contain all the matched signatures.
         sigs = []
 
         # Run every loaded signature.
         for signature in list_plugins(group="signatures"):
-            match = self._run_signature(signature, results)
-            # If the signature is matched, add it to the list.
-            if match:
+            if match := self._run_signature(signature, results):
                 sigs.append(match)
 
         # Sort the matched signatures by their severity level.
